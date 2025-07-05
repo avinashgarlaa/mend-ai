@@ -1,84 +1,95 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:mend_ai/models/reflection.dart';
-import 'package:mend_ai/models/session.dart';
-import 'package:mend_ai/viewmodels/insights_viewmodel.dart';
+import 'package:mend_ai/providers/mend_provider.dart';
+import '../../providers/user_provider.dart';
 
 class InsightsScreen extends ConsumerStatefulWidget {
-  final String userId;
-  const InsightsScreen({super.key, required this.userId});
+  const InsightsScreen({super.key});
 
   @override
   ConsumerState<InsightsScreen> createState() => _InsightsScreenState();
 }
 
 class _InsightsScreenState extends ConsumerState<InsightsScreen> {
+  bool isLoading = true;
+  List sessions = [];
+  List reflections = [];
+
+  Future<void> loadInsights() async {
+    final user = ref.read(userProvider);
+    final api = ref.read(mendServiceProvider);
+
+    if (user == null) return;
+
+    try {
+      final res = await api.getInsights(user.id);
+      sessions = res.data['sessions'];
+      reflections = res.data['reflections'];
+    } catch (e) {
+      print("Error loading insights: $e");
+    } finally {
+      setState(() => isLoading = false);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
-    Future.microtask(
-      () => ref
-          .read(insightsViewModelProvider.notifier)
-          .fetchInsights(widget.userId),
-    );
+    loadInsights();
   }
 
   @override
   Widget build(BuildContext context) {
-    final insightsState = ref.watch(insightsViewModelProvider);
-
     return Scaffold(
-      appBar: AppBar(title: const Text('Communication Insights')),
-      body: insightsState.when(
-        data: (data) {
-          final sessionsJson = data['sessions'] as List<dynamic>? ?? [];
-          final reflectionsJson = data['reflections'] as List<dynamic>? ?? [];
-
-          final sessions = sessionsJson
-              .map((e) => Session.fromJson(e))
-              .toList();
-          final reflections = reflectionsJson
-              .map((e) => Reflection.fromJson(e))
-              .toList();
-
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              const Text(
-                'Sessions:',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-              ),
-              ...sessions.map(
-                (s) => ListTile(
-                  title: Text('Session ID: ${s.id}'),
-                  subtitle: Text('Partners: ${s.partnerA} & ${s.partnerB}'),
-                  trailing: s.resolved
-                      ? const Icon(Icons.check_circle, color: Colors.green)
-                      : const Icon(Icons.pending, color: Colors.orange),
+      appBar: AppBar(title: const Text("Your Insights")),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                const Text(
+                  "🗣️ Past Sessions",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'Reflections:',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-              ),
-              ...reflections.map(
-                (r) => ListTile(
-                  title: Text('Reflection by User: ${r.userId}'),
-                  subtitle: Text(r.content),
-                  trailing: Text(
-                    DateTime.fromMillisecondsSinceEpoch(
-                      r.timestamp * 1000,
-                    ).toLocal().toString(),
+                const SizedBox(height: 8),
+                ...sessions.map(
+                  (s) => Card(
+                    child: ListTile(
+                      title: Text(
+                        "Session with ${s['partnerA']} & ${s['partnerB']}",
+                      ),
+                      subtitle: Text(
+                        "Resolved: ${s['resolved'] ? 'Yes' : 'No'}",
+                      ),
+                      trailing: Text(
+                        DateTime.fromMillisecondsSinceEpoch(
+                          s['createdAt'] * 1000,
+                        ).toLocal().toString().split('.')[0],
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ],
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
-      ),
+                const SizedBox(height: 24),
+                const Text(
+                  "🧘 Your Reflections",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                ...reflections.map(
+                  (r) => Card(
+                    child: ListTile(
+                      title: Text(r['text'] ?? "No text"),
+                      subtitle: Text("Session ID: ${r['sessionId']}"),
+                      trailing: Text(
+                        DateTime.fromMillisecondsSinceEpoch(
+                          r['timestamp'] * 1000,
+                        ).toLocal().toString().split('.')[0],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
     );
   }
 }

@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:mend_ai/views/auth/invite_partner_screen.dart';
-import 'package:mend_ai/views/auth/questionare_screen.dart';
-import 'package:mend_ai/views/onboarding/onboarding_screen.dart';
-import 'views/home/home_screen.dart';
-import 'views/session/start_session_screen.dart';
-import 'views/chat/moderate_chat_screen.dart';
-import 'views/insights/insights_screen.dart';
-import 'views/reflection/reflection_screen.dart';
+import 'package:mend_ai/views/auth/invite_screen.dart';
+import 'package:mend_ai/views/auth/login_screen.dart';
+import 'package:mend_ai/views/auth/onboarding_screen.dart';
+import 'package:mend_ai/views/auth/register_screen.dart';
+import 'package:mend_ai/views/chat/chat_screen.dart';
+import 'package:mend_ai/views/post_resolution/post_resolution_screen.dart';
+import 'package:mend_ai/views/score/comm_score_screen.dart';
+import 'package:mend_ai/views/session/session_screen.dart';
+import 'package:mend_ai/views/home/home_screen.dart';
+import 'package:mend_ai/views/insights/insights_screen.dart';
+import 'package:mend_ai/views/reflection/reflection_screen.dart';
 
 class MendApp extends StatelessWidget {
   const MendApp({super.key});
@@ -16,31 +19,38 @@ class MendApp extends StatelessWidget {
     return MaterialApp(
       title: 'Mend - Couples Therapy',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(primarySwatch: Colors.blue),
+      theme: ThemeData(
+        primarySwatch: Colors.deepPurple,
+        scaffoldBackgroundColor: Colors.grey[100],
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
       initialRoute: '/',
       routes: {
-        '/': (context) => const OnboardingScreen(),
+        '/': (context) => const LoginScreen(),
         '/home': (context) => const HomeScreen(),
-        '/start-session': (context) => const StartSessionScreen(),
-        '/moderate-chat': (context) => const ModerateChatScreen(),
-        '/questionnaire': (context) => const QuestionnaireScreen(),
+        '/register': (context) => const RegisterScreen(),
+        '/onboarding': (context) => const OnboardingQuestionnaireScreen(),
         '/invite-partner': (context) => const InvitePartnerScreen(),
+        '/start-session': (context) => const StartSessionScreen(),
+        '/chat': (context) => const ChatScreen(),
+        '/post-resolution': (context) => const PostResolutionScreen(),
+        '/score': (context) => const ScoreScreen(),
       },
       onGenerateRoute: (settings) {
+        // Insights screen with userId param
         if (settings.name == '/insights') {
-          final args = settings.arguments as Map<String, dynamic>;
-          return MaterialPageRoute(
-            builder: (_) => InsightsScreen(userId: args['userId']),
-          );
-        } else if (settings.name == '/reflection') {
-          final args = settings.arguments as Map<String, dynamic>;
-          return MaterialPageRoute(
-            builder: (_) => ReflectionScreen(
-              sessionId: args['sessionId'],
-              userId: args['userId'],
-            ),
-          );
+          return MaterialPageRoute(builder: (_) => InsightsScreen());
         }
+
+        // Reflection screen with userId and sessionId
+        if (settings.name == '/reflection') {
+          return MaterialPageRoute(builder: (_) => ReflectionScreen());
+        }
+
         return null;
       },
     );

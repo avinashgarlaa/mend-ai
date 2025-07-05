@@ -1,83 +1,72 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:mend_ai/viewmodels/reflection_viewmodel.dart';
+import 'package:mend_ai/providers/mend_provider.dart';
+import '../../providers/user_provider.dart';
 
 class ReflectionScreen extends ConsumerStatefulWidget {
-  final String sessionId;
-  final String userId;
-
-  const ReflectionScreen({
-    super.key,
-    required this.sessionId,
-    required this.userId,
-  });
+  const ReflectionScreen({super.key});
 
   @override
   ConsumerState<ReflectionScreen> createState() => _ReflectionScreenState();
 }
 
 class _ReflectionScreenState extends ConsumerState<ReflectionScreen> {
-  final _contentController = TextEditingController();
+  final controller = TextEditingController();
+
+  void _submit() async {
+    final user = ref.read(userProvider);
+    final api = ref.read(mendServiceProvider);
+
+    if (user == null || user.currentSessionId == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Missing user or session")));
+      return;
+    }
+
+    final payload = {
+      "userId": user.id,
+      "sessionId": user.currentSessionId,
+      "text": controller.text.trim(),
+    };
+
+    try {
+      await api.submitReflection(payload);
+
+      Navigator.pushNamed(context, '/score');
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final reflectionState = ref.watch(reflectionViewModelProvider);
-    final reflectionVM = ref.read(reflectionViewModelProvider.notifier);
-
-    ref.listen(reflectionViewModelProvider, (previous, next) {
-      next.whenData((reflection) {
-        if (reflection != null) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Reflection saved')));
-          Navigator.pop(context);
-        }
-      });
-      next.when(
-        data: (_) {},
-        loading: () {},
-        error: (error, _) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Error: $error')));
-        },
-      );
-    });
-
     return Scaffold(
-      appBar: AppBar(title: const Text('Post-Session Reflection')),
+      appBar: AppBar(title: const Text("Reflection")),
       body: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            TextField(
-              controller: _contentController,
-              decoration: const InputDecoration(labelText: 'Reflection'),
-              maxLines: 5,
+            const Text(
+              "Take a moment to reflect on the conversation.",
+              style: TextStyle(fontSize: 16),
             ),
-            const SizedBox(height: 20),
-            reflectionState.isLoading
-                ? const CircularProgressIndicator()
-                : ElevatedButton(
-                    onPressed: () {
-                      final content = _contentController.text.trim();
-                      if (content.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Please enter reflection'),
-                          ),
-                        );
-                        return;
-                      }
-
-                      reflectionVM.saveReflection({
-                        'sessionId': widget.sessionId,
-                        'userId': widget.userId,
-                        'content': content,
-                      });
-                    },
-                    child: const Text('Submit'),
-                  ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              maxLines: 6,
+              decoration: const InputDecoration(
+                hintText: "What did you learn about yourself or your partner?",
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: _submit,
+              child: const Text("Submit Reflection"),
+            ),
           ],
         ),
       ),

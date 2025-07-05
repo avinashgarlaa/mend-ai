@@ -35,7 +35,7 @@ class _InvitePartnerScreenState extends ConsumerState<InvitePartnerScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("🎉 Partner linked successfully!")),
       );
-      Navigator.pushReplacementNamed(context, '/start-session');
+      Navigator.pushReplacementNamed(context, '/home');
     } else {
       ScaffoldMessenger.of(
         context,

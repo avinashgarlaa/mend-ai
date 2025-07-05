@@ -3,7 +3,6 @@ import 'package:mend_ai/providers/mend_api_provider.dart';
 import 'package:mend_ai/services/mend_api_service.dart';
 import 'package:mend_ai/viewmodels/user_viewmodel.dart';
 
-/// State class for managing invite state
 class InviteState {
   final String partnerId;
   final bool isLoading;
@@ -18,7 +17,6 @@ class InviteState {
   }
 }
 
-/// ViewModel for inviting a partner
 class InviteViewModel extends StateNotifier<InviteState> {
   final MendApiService api;
   final Ref ref;

@@ -1,26 +1,37 @@
+// lib/viewmodels/session_viewmodel.dart
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mend_ai/models/session.dart';
-import 'package:mend_ai/providers/mend_api_provider.dart';
-import 'package:mend_ai/services/mend_api_service.dart';
+import 'package:mend_ai/providers/mend_provider.dart';
+import 'package:mend_ai/services/mend_service.dart';
 
-final sessionViewModelProvider =
-    StateNotifierProvider<SessionViewModel, AsyncValue<Session?>>((ref) {
-      final api = ref.watch(mendApiServiceProvider);
-      return SessionViewModel(api);
-    });
+class SessionViewModel extends StateNotifier<Session?> {
+  final MendService api;
+  SessionViewModel(this.api) : super(null);
 
-class SessionViewModel extends StateNotifier<AsyncValue<Session?>> {
-  final MendApiService api;
-
-  SessionViewModel(this.api) : super(const AsyncValue.data(null));
-
-  Future<void> startSession(Map<String, dynamic> sessionData) async {
-    state = const AsyncValue.loading();
+  Future<Session?> startSession({
+    required String partnerA,
+    required String partnerB,
+    String? initialContext,
+  }) async {
     try {
-      final session = await api.startSession(sessionData);
-      state = AsyncValue.data(session);
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
+      final res = await api.startSession({
+        "partnerA": partnerA,
+        "partnerB": partnerB,
+        "initialContext": initialContext ?? "",
+      });
+
+      final session = Session.fromJson(res.data);
+
+      return session;
+    } catch (e) {
+      print("Failed to start session: $e");
+      return null;
     }
   }
 }
+
+final sessionViewModelProvider =
+    StateNotifierProvider<SessionViewModel, Session?>(
+      (ref) => SessionViewModel(ref.read(mendServiceProvider)),
+    );
