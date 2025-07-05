@@ -6,33 +6,43 @@ class ChatBubble extends StatelessWidget {
 
   const ChatBubble({super.key, required this.message});
 
+  Color _getSpeakerColor(String speaker, bool isAI, bool isInterrupt) {
+    if (isInterrupt) return Colors.red.shade100;
+    if (isAI) return Colors.grey.shade300;
+
+    switch (speaker.toLowerCase()) {
+      case 'partnera':
+        return Colors.blue.shade50;
+      case 'partnerb':
+        return Colors.pink.shade50;
+      default:
+        return Colors.grey.shade100;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isAI = message.isAI;
-    final isUserA = message.speaker.toLowerCase() == 'partnera';
-
-    final bgColor = isAI
-        ? Colors.grey.shade300
-        : isUserA
-        ? Colors.blue.shade100
-        : Colors.pink.shade100;
-
-    final alignment = isAI
-        ? Alignment.center
-        : isUserA
-        ? Alignment.centerRight
-        : Alignment.centerLeft;
-
-    return Align(
-      alignment: alignment,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: message.isInterrupt ? Colors.red.shade100 : bgColor,
-          borderRadius: BorderRadius.circular(12),
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _getSpeakerColor(
+          message.speaker,
+          message.isAI,
+          message.isInterrupt,
         ),
-        child: Text(message.message, style: const TextStyle(fontSize: 16)),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${message.speaker}:',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          Text(message.message),
+        ],
       ),
     );
   }

@@ -23,6 +23,30 @@ class MendApiService {
     }
   }
 
+  Future<void> sendInvite(Map<String, String> inviteData) async {
+    final res = await http.post(
+      Uri.parse('$baseUrl/invite'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(inviteData),
+    );
+
+    if (res.statusCode != 200) {
+      throw Exception('Invite failed');
+    }
+  }
+
+  Future<void> submitOnboarding(Map<String, dynamic> data) async {
+    final res = await http.post(
+      Uri.parse('$baseUrl/onboarding'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(data),
+    );
+
+    if (res.statusCode != 201) {
+      throw Exception('Failed to submit onboarding');
+    }
+  }
+
   Future<Map<String, dynamic>> moderateChat(
     Map<String, String> chatData,
   ) async {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mend_ai/views/auth/invite_partner_screen.dart';
 import 'package:mend_ai/views/auth/questionare_screen.dart';
 import 'package:mend_ai/views/onboarding/onboarding_screen.dart';
 import 'views/home/home_screen.dart';
@@ -23,6 +24,7 @@ class MendApp extends StatelessWidget {
         '/start-session': (context) => const StartSessionScreen(),
         '/moderate-chat': (context) => const ModerateChatScreen(),
         '/questionnaire': (context) => const QuestionnaireScreen(),
+        '/invite-partner': (context) => const InvitePartnerScreen(),
       },
       onGenerateRoute: (settings) {
         if (settings.name == '/insights') {
