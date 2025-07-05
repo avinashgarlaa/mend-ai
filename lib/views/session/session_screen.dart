@@ -38,7 +38,6 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
     if (success != null) {
       final Session session = success;
       ref.read(userProvider.notifier).updateSessionId(session.id);
-
       Navigator.pushReplacementNamed(context, '/chat');
     } else {
       ScaffoldMessenger.of(

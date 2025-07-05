@@ -1,5 +1,7 @@
 // lib/views/onboarding_questionnaire_screen.dart
 
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mend_ai/providers/user_provider.dart';
