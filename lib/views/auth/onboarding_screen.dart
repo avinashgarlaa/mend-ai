@@ -1,5 +1,3 @@
-// lib/views/onboarding_questionnaire_screen.dart
-
 // ignore_for_file: use_build_context_synchronously
 
 import 'package:flutter/material.dart';
@@ -62,7 +60,7 @@ class _OnboardingQuestionnaireScreenState
 
     final success = await ref
         .read(authViewModelProvider)
-        .submitOnboardingOnly(payload);
+        .submitOnboarding(payload);
     if (success) {
       Navigator.pushReplacementNamed(context, '/invite-partner');
     } else {
@@ -83,11 +81,16 @@ class _OnboardingQuestionnaireScreenState
       children: [
         Text(
           title,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.deepPurple,
+          ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         Wrap(
           spacing: 10,
+          runSpacing: 8,
           children: items.map((item) {
             return FilterChip(
               label: Text(item),
@@ -97,16 +100,27 @@ class _OnboardingQuestionnaireScreenState
                   val ? selectedSet.add(item) : selectedSet.remove(item);
                 });
               },
+              selectedColor: Colors.deepPurple.shade200,
+              backgroundColor: Colors.grey.shade200,
+              labelStyle: TextStyle(
+                color: selectedSet.contains(item) ? Colors.white : Colors.black,
+              ),
+              checkmarkColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             );
           }).toList(),
         ),
         if (selectedSet.contains("Other"))
           Padding(
-            padding: const EdgeInsets.only(top: 8),
+            padding: const EdgeInsets.only(top: 10),
             child: TextField(
               controller: otherController,
               decoration: const InputDecoration(
                 hintText: "Other (please specify)",
+                filled: true,
+                fillColor: Colors.white,
               ),
             ),
           ),
@@ -117,31 +131,43 @@ class _OnboardingQuestionnaireScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Your Relationship Goals")),
+      backgroundColor: const Color(0xfff0f4ff),
+      appBar: AppBar(
+        title: const Text("Your Relationship Goals"),
+        backgroundColor: Colors.deepPurple,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(24),
         child: ListView(
           children: [
             _buildChipSection(
-              title: "What do you want to improve?",
+              title: "✨ What do you want to improve?",
               items: goals,
               selectedSet: selectedGoals,
               otherController: otherGoalController,
             ),
             const SizedBox(height: 32),
             _buildChipSection(
-              title: "What challenges are you facing?",
+              title: "⚠️ What challenges are you facing?",
               items: challenges,
               selectedSet: selectedChallenges,
               otherController: otherChallengeController,
             ),
-            const SizedBox(height: 32),
-            ElevatedButton.icon(
-              onPressed: _submit,
-              icon: const Icon(Icons.navigate_next),
-              label: const Text("Continue"),
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size.fromHeight(50),
+            const SizedBox(height: 36),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _submit,
+                icon: const Icon(Icons.arrow_forward),
+                label: const Text("Continue"),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: Colors.deepPurple,
+                  textStyle: const TextStyle(fontSize: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
               ),
             ),
           ],

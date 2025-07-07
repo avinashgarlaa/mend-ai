@@ -5,6 +5,7 @@ import 'package:mend_ai/views/auth/onboarding_screen.dart';
 import 'package:mend_ai/views/auth/register_screen.dart';
 import 'package:mend_ai/views/chat/chat_screen.dart';
 import 'package:mend_ai/views/post_resolution/post_resolution_screen.dart';
+import 'package:mend_ai/views/reflection/celebration_screen.dart';
 import 'package:mend_ai/views/score/comm_score_screen.dart';
 import 'package:mend_ai/views/session/session_screen.dart';
 import 'package:mend_ai/views/home/home_screen.dart';
@@ -37,6 +38,7 @@ class MendApp extends StatelessWidget {
         '/invite-partner': (context) => const InvitePartnerScreen(),
         '/start-session': (context) => const StartSessionScreen(),
         '/chat': (context) => const ChatScreen(),
+        '/celebrate': (context) => const CelebrationScreen(),
         '/post-resolution': (context) => const PostResolutionScreen(),
         '/score': (context) => const ScoreScreen(),
       },

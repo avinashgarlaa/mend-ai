@@ -39,7 +39,7 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
 
     try {
       await api.submitScore(payload);
-      Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
+      Navigator.pushNamed(context, '/celebrate');
     } catch (e) {
       ScaffoldMessenger.of(
         context,

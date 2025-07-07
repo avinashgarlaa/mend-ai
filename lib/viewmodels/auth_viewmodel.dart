@@ -1,22 +1,20 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mend_ai/providers/mend_provider.dart';
-import '../models/user_model.dart';
-import '../providers/user_provider.dart';
+import 'package:mend_ai/models/user_model.dart';
+import 'package:mend_ai/providers/user_provider.dart';
 
-final authViewModelProvider = Provider((ref) {
-  return AuthViewModel(ref);
-});
+final authViewModelProvider = Provider((ref) => AuthViewModel(ref));
 
 class AuthViewModel {
   final Ref ref;
 
   AuthViewModel(this.ref);
 
-  /// Login via Partner ID
-  Future<bool> login(String partnerId) async {
+  /// 🔐 Login using email
+  Future<bool> loginByEmail(String email) async {
     final api = ref.read(mendServiceProvider);
     try {
-      final response = await api.login(partnerId);
+      final response = await api.login(email);
       final user = User.fromJson(response.data);
       ref.read(userProvider.notifier).setUser(user);
       return true;
@@ -26,6 +24,7 @@ class AuthViewModel {
     }
   }
 
+  /// 👤 Register new user with name, gender, and email
   Future<bool> registerUser(Map<String, dynamic> userData) async {
     final api = ref.read(mendServiceProvider);
     try {
@@ -39,10 +38,11 @@ class AuthViewModel {
     }
   }
 
-  Future<bool> submitOnboardingOnly(Map<String, dynamic> data) async {
+  /// 📝 Onboarding: Fill relationship details
+  Future<bool> submitOnboarding(Map<String, dynamic> onboardingData) async {
     final api = ref.read(mendServiceProvider);
     try {
-      await api.submitOnboarding(data);
+      await api.submitOnboarding(onboardingData);
       return true;
     } catch (e) {
       print("Submit onboarding failed: $e");
@@ -50,7 +50,7 @@ class AuthViewModel {
     }
   }
 
-  /// Invite and link partner
+  /// 🔗 Link to a partner via invite
   Future<bool> linkPartner(String yourId, String partnerId) async {
     final api = ref.read(mendServiceProvider);
     try {
@@ -64,5 +64,21 @@ class AuthViewModel {
       print("Invite failed: $e");
       return false;
     }
+  }
+
+  /// 🧠 Register and immediately submit onboarding
+  Future<bool> registerAndOnboard({
+    required Map<String, dynamic> userData,
+    required Map<String, dynamic> onboardingData,
+  }) async {
+    final success = await registerUser(userData);
+    if (!success) return false;
+
+    final user = ref.read(userProvider);
+    if (user == null) return false;
+
+    final merged = {...onboardingData, "userId": user.id};
+
+    return await submitOnboarding(merged);
   }
 }
