@@ -1,7 +1,8 @@
-// ignore_for_file: use_build_context_synchronously
+// lib/views/onboarding_questionnaire_screen.dart
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:mend_ai/providers/user_provider.dart';
 import 'package:mend_ai/viewmodels/auth_viewmodel.dart';
 
@@ -51,18 +52,20 @@ class _OnboardingQuestionnaireScreenState
     }
 
     final payload = {
-      "userId": user.id,
-      "relationshipGoals": selectedGoals.toList(),
+      "userId": user.id, // ✅ fixed here
+      "goals": selectedGoals.toList(),
       "otherGoal": otherGoalController.text.trim(),
-      "currentChallenges": selectedChallenges.toList(),
+      "challenges": selectedChallenges.toList(),
       "otherChallenge": otherChallengeController.text.trim(),
     };
+
+    print(payload);
 
     final success = await ref
         .read(authViewModelProvider)
         .submitOnboarding(payload);
     if (success) {
-      Navigator.pushReplacementNamed(context, '/invite-partner');
+      Navigator.pushReplacementNamed(context, '/home');
     } else {
       ScaffoldMessenger.of(
         context,
@@ -72,6 +75,7 @@ class _OnboardingQuestionnaireScreenState
 
   Widget _buildChipSection({
     required String title,
+    required IconData icon,
     required List<String> items,
     required Set<String> selectedSet,
     required TextEditingController otherController,
@@ -79,18 +83,24 @@ class _OnboardingQuestionnaireScreenState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.deepPurple,
-          ),
+        Row(
+          children: [
+            Icon(icon, color: Colors.deepPurple),
+            const SizedBox(width: 8),
+            Text(
+              title,
+              style: GoogleFonts.laila(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.deepPurple,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 20),
         Wrap(
-          spacing: 10,
-          runSpacing: 8,
+          spacing: 12,
+          runSpacing: 12,
           children: items.map((item) {
             return FilterChip(
               label: Text(item),
@@ -100,7 +110,7 @@ class _OnboardingQuestionnaireScreenState
                   val ? selectedSet.add(item) : selectedSet.remove(item);
                 });
               },
-              selectedColor: Colors.deepPurple.shade200,
+              selectedColor: Colors.deepPurple,
               backgroundColor: Colors.grey.shade200,
               labelStyle: TextStyle(
                 color: selectedSet.contains(item) ? Colors.white : Colors.black,
@@ -132,45 +142,87 @@ class _OnboardingQuestionnaireScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xfff0f4ff),
-      appBar: AppBar(
-        title: const Text("Your Relationship Goals"),
-        backgroundColor: Colors.deepPurple,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: ListView(
-          children: [
-            _buildChipSection(
-              title: "✨ What do you want to improve?",
-              items: goals,
-              selectedSet: selectedGoals,
-              otherController: otherGoalController,
-            ),
-            const SizedBox(height: 32),
-            _buildChipSection(
-              title: "⚠️ What challenges are you facing?",
-              items: challenges,
-              selectedSet: selectedChallenges,
-              otherController: otherChallengeController,
-            ),
-            const SizedBox(height: 36),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _submit,
-                icon: const Icon(Icons.arrow_forward),
-                label: const Text("Continue"),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  backgroundColor: Colors.deepPurple,
-                  textStyle: const TextStyle(fontSize: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 20),
+              Text(
+                "Let's personalize your experience",
+                style: GoogleFonts.laila(
+                  color: Colors.deepPurple,
+                  fontSize: 23,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 12,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: ListView(
+                    children: [
+                      _buildChipSection(
+                        title: "What would you like to improve?",
+                        icon: Icons.favorite_border,
+                        items: goals,
+                        selectedSet: selectedGoals,
+                        otherController: otherGoalController,
+                      ),
+                      const SizedBox(height: 32),
+                      _buildChipSection(
+                        title: "What challenges are you facing?",
+                        icon: Icons.warning_amber_outlined,
+                        items: challenges,
+                        selectedSet: selectedChallenges,
+                        otherController: otherChallengeController,
+                      ),
+                      const SizedBox(height: 36),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _submit,
+                          icon: Icon(
+                            Icons.navigate_next,
+                            color: Colors.white,
+                            size: 30,
+                          ),
+                          label: Text(
+                            "Continue",
+                            style: GoogleFonts.varela(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            backgroundColor: Colors.deepPurple,
+                            textStyle: const TextStyle(fontSize: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

@@ -15,26 +15,32 @@ class MendService {
   Future<Response> registerUser(Map<String, dynamic> data) =>
       _dio.post('/register', data: data);
 
-  Future<Response> login(String email) =>
-      _dio.post('/login', data: {'email': email});
+  Future<Response> loginWithCredentials(String email, String password) =>
+      _dio.post('/login', data: {'email': email, 'password': password});
 
   Future<Response> getUser(String userId) => _dio.get('/user/$userId');
 
   Future<Response> invitePartner(Map<String, dynamic> data) =>
       _dio.post('/invite', data: data);
 
+  Future<Response> acceptInvite(Map<String, dynamic> data) =>
+      _dio.post('/accept-invite', data: data);
+
   // 📝 Onboarding
   Future<Response> submitOnboarding(Map<String, dynamic> data) =>
       _dio.post('/onboarding', data: data);
 
-  // 🎤 Session & Chat
+  // 🎤 Voice Session
   Future<Response> startSession(Map<String, dynamic> data) =>
       _dio.post('/session', data: data);
 
-  Future<Response> moderate(Map<String, dynamic> data) =>
-      _dio.post('/moderate', data: data);
+  Future<Response> getActiveSession(String userId) =>
+      _dio.get('/session/active/$userId');
 
-  // 💬 Post-session
+  Future<Response> endSession(String sessionId) =>
+      _dio.patch('/session/end/$sessionId');
+
+  // 🧘 Post-session
   Future<Response> submitReflection(Map<String, dynamic> data) =>
       _dio.post('/reflection', data: data);
 
@@ -44,6 +50,6 @@ class MendService {
   Future<Response> submitScore(Map<String, dynamic> data) =>
       _dio.post('/score', data: data);
 
-  // 📊 Insights
+  // 📊 Insights Dashboard
   Future<Response> getInsights(String userId) => _dio.get('/insights/$userId');
 }

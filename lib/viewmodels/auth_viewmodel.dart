@@ -11,15 +11,15 @@ class AuthViewModel {
   AuthViewModel(this.ref);
 
   /// 🔐 Login using email
-  Future<bool> loginByEmail(String email) async {
+  Future<bool> loginWithEmailAndPassword(String email, String password) async {
     final api = ref.read(mendServiceProvider);
     try {
-      final response = await api.login(email);
+      final response = await api.loginWithCredentials(email, password);
       final user = User.fromJson(response.data);
       ref.read(userProvider.notifier).setUser(user);
       return true;
     } catch (e) {
-      print('Login failed: $e');
+      print("Login failed: $e");
       return false;
     }
   }
@@ -80,5 +80,17 @@ class AuthViewModel {
     final merged = {...onboardingData, "userId": user.id};
 
     return await submitOnboarding(merged);
+  }
+
+  /// 📥 Get partner details using ID
+  Future<User?> getPartnerDetails(String partnerId) async {
+    final api = ref.read(mendServiceProvider);
+    try {
+      final res = await api.getUser(partnerId);
+      return User.fromJson(res.data);
+    } catch (e) {
+      print("Failed to fetch partner details: $e");
+      return null;
+    }
   }
 }

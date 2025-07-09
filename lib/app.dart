@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:mend_ai/views/auth/invite_screen.dart';
+import 'package:mend_ai/views/auth/invite_partner_screen.dart';
 import 'package:mend_ai/views/auth/login_screen.dart';
 import 'package:mend_ai/views/auth/onboarding_screen.dart';
 import 'package:mend_ai/views/auth/register_screen.dart';
@@ -21,14 +21,16 @@ class MendApp extends StatelessWidget {
       title: 'Mend - Couples Therapy',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
+        fontFamily: 'Laila',
         primarySwatch: Colors.deepPurple,
-        scaffoldBackgroundColor: Colors.grey[100],
+        scaffoldBackgroundColor: const Color(0xfff0f4ff),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
           fillColor: Colors.white,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         ),
       ),
+
       initialRoute: '/',
       routes: {
         '/': (context) => const LoginScreen(),

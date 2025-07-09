@@ -1,5 +1,8 @@
+// lib/views/login_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:mend_ai/viewmodels/auth_viewmodel.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -11,29 +14,33 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final emailController = TextEditingController();
+  final passwordController = TextEditingController();
   bool isLoading = false;
+  bool showPassword = false;
 
   void _login() async {
     final email = emailController.text.trim();
+    final password = passwordController.text.trim();
 
-    if (email.isEmpty || !email.contains('@')) {
+    if (email.isEmpty || !email.contains('@') || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Enter a valid email address")),
+        const SnackBar(content: Text("Enter valid email and password")),
       );
       return;
     }
 
     setState(() => isLoading = true);
-    final success = await ref.read(authViewModelProvider).loginByEmail(email);
+    final success = await ref
+        .read(authViewModelProvider)
+        .loginWithEmailAndPassword(email, password);
     setState(() => isLoading = false);
 
     if (success) {
-      // ignore: use_build_context_synchronously
-      Navigator.pushReplacementNamed(context, '/invite-partner');
+      Navigator.pushReplacementNamed(context, '/home');
     } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Login failed. Try again.")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Login failed. Check credentials.")),
+      );
     }
   }
 
@@ -60,6 +67,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 const SizedBox(height: 32),
 
+                // Email Field
                 TextFormField(
                   controller: emailController,
                   decoration: InputDecoration(
@@ -73,16 +81,53 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   keyboardType: TextInputType.emailAddress,
                 ),
+                const SizedBox(height: 20),
+
+                // Password Field
+                TextFormField(
+                  controller: passwordController,
+                  obscureText: !showPassword,
+                  decoration: InputDecoration(
+                    labelText: "Password",
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        showPassword ? Icons.visibility_off : Icons.visibility,
+                      ),
+                      onPressed: () =>
+                          setState(() => showPassword = !showPassword),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
 
                 const SizedBox(height: 24),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     onPressed: isLoading ? null : _login,
-                    icon: const Icon(Icons.login),
+                    icon: const Icon(Icons.login, color: Colors.white),
                     label: isLoading
-                        ? const CircularProgressIndicator()
-                        : const Text("Login"),
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Text(
+                            "Login",
+                            style: GoogleFonts.varela(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.deepPurple,
                       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -97,9 +142,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 const SizedBox(height: 12),
                 TextButton(
                   onPressed: () => Navigator.pushNamed(context, '/register'),
-                  child: const Text(
+                  child: Text(
                     "Don't have an account? Register",
-                    style: TextStyle(color: Colors.deepPurple),
+                    style: GoogleFonts.varela(
+                      color: Colors.black,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ],
