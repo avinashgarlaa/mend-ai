@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:mend_ai/providers/mend_provider.dart';
 import 'package:mend_ai/models/user_model.dart';
 import 'package:mend_ai/providers/user_provider.dart';
@@ -17,9 +18,32 @@ class AuthViewModel {
       final response = await api.loginWithCredentials(email, password);
       final user = User.fromJson(response.data);
       ref.read(userProvider.notifier).setUser(user);
+      await FlutterSecureStorage().write(key: 'email', value: email);
+      await FlutterSecureStorage().write(key: 'password', value: password);
+
       return true;
     } catch (e) {
       print("Login failed: $e");
+      return false;
+    }
+  }
+
+  /// 🔁 Attempt auto-login if email/password saved
+  Future<bool> tryAutoLogin() async {
+    final email = await FlutterSecureStorage().read(key: 'email');
+    final password = await FlutterSecureStorage().read(key: 'password');
+
+    if (email == null || password == null) return false;
+
+    try {
+      final api = ref.read(mendServiceProvider);
+      final response = await api.loginWithCredentials(email, password);
+      final user = User.fromJson(response.data);
+
+      ref.read(userProvider.notifier).setUser(user);
+      return true;
+    } catch (e) {
+      print("Auto-login failed: $e");
       return false;
     }
   }
@@ -36,6 +60,12 @@ class AuthViewModel {
       print("Register failed: $e");
       return false;
     }
+  }
+
+  Future<void> logout() async {
+    await FlutterSecureStorage().delete(key: 'email');
+    await FlutterSecureStorage().delete(key: 'password');
+    ref.read(userProvider.notifier).clearUser();
   }
 
   /// 📝 Onboarding: Fill relationship details

@@ -33,7 +33,6 @@ class SessionViewModel extends StateNotifier<Session?> {
     try {
       final res = await api.getActiveSession(userId);
       final session = Session.fromJson(res.data);
-      state = session;
       return session;
     } catch (e) {
       print("⚠️ No active session: $e");
@@ -46,29 +45,10 @@ class SessionViewModel extends StateNotifier<Session?> {
   Future<bool> endSession(String sessionId) async {
     try {
       await api.endSession(sessionId);
-      state = null;
       return true;
     } catch (e) {
       print("❌ Failed to end session: $e");
       return false;
-    }
-  }
-
-  /// 🧠 Moderate chat message (GPT-4 AI)
-  Future<Map<String, dynamic>> moderateChat(
-    String transcript,
-    String speakerId,
-  ) async {
-    try {
-      final res = await api.moderateChat({
-        "transcript": transcript,
-        "context": "", // optional if needed
-        "speaker": speakerId,
-      });
-      return res.data;
-    } catch (e) {
-      print("❌ Moderation failed: $e");
-      return {"aiReply": "", "interrupt": false};
     }
   }
 

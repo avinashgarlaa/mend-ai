@@ -58,13 +58,182 @@ class _InvitePartnerScreenState extends ConsumerState<InvitePartnerScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("🎉 Invitation sent and partner linked!")),
       );
-      _fetchPartnerDetails(); // Refresh details
+      _fetchPartnerDetails();
     } else {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text("Failed to link partner")));
+      ).showSnackBar(const SnackBar(content: Text("❌ Failed to link partner")));
     }
     setState(() => isLoading = false);
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xff8e2de2), Color(0xff4a00e0)],
+        ),
+        boxShadow: [
+          BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 4)),
+        ],
+      ),
+      child: SafeArea(
+        child: Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.white),
+              onPressed: () => Navigator.pop(context),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              "Partner Invite",
+              style: GoogleFonts.laila(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInviteCard(User? user) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.only(top: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 4)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text("Your ID", style: GoogleFonts.lato(fontSize: 14)),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: SelectableText(
+                  user?.id ?? "N/A",
+                  style: GoogleFonts.lato(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.deepPurple,
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.copy, color: Colors.deepPurple),
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: user?.id ?? ""));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Partner ID copied")),
+                  );
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Text(
+            "Enter your partner’s ID:",
+            style: GoogleFonts.lato(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: partnerIdController,
+            decoration: InputDecoration(
+              hintText: "e.g. partner-uuid",
+              labelText: "Partner's ID",
+              prefixIcon: const Icon(Icons.link),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+          const SizedBox(height: 28),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _submitInvite,
+              icon: const Icon(Icons.favorite_outline),
+              label: Text(
+                "Link Partner",
+                style: GoogleFonts.laila(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepPurple,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPartnerCard(User partner) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.only(top: 16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xffe0c3fc), Color(0xff8ec5fc)],
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 4)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "🎉 Partner Linked!",
+            style: GoogleFonts.lato(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.deepPurple,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              const Icon(Icons.person, color: Colors.deepPurple),
+              const SizedBox(width: 8),
+              Text(
+                "Name: ${partner.name}",
+                style: GoogleFonts.lato(fontSize: 16),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Icon(Icons.mail_outline, color: Colors.deepPurple),
+              const SizedBox(width: 8),
+              Text(
+                "Email: ${partner.email}",
+                style: GoogleFonts.lato(fontSize: 16),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -86,8 +255,8 @@ class _InvitePartnerScreenState extends ConsumerState<InvitePartnerScreen> {
                     )
                   : ListView(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 20,
+                        horizontal: 20,
+                        vertical: 16,
                       ),
                       children: [
                         Text(
@@ -107,164 +276,6 @@ class _InvitePartnerScreenState extends ConsumerState<InvitePartnerScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildInviteCard(User? user) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 10,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text("Your ID:", style: GoogleFonts.varelaRound(fontSize: 16)),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: SelectableText(
-                  user?.id ?? "N/A",
-                  style: GoogleFonts.varelaRound(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.deepPurple,
-                  ),
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.copy, color: Colors.deepPurple),
-                onPressed: () {
-                  Clipboard.setData(ClipboardData(text: user?.id ?? ""));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Partner ID copied")),
-                  );
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          Text(
-            "Enter your partner’s ID:",
-            style: GoogleFonts.varelaRound(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: partnerIdController,
-            decoration: const InputDecoration(
-              labelText: "Partner's ID",
-              prefixIcon: Icon(Icons.link),
-            ),
-          ),
-          const SizedBox(height: 32),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: _submitInvite,
-              icon: const Icon(Icons.favorite_outline),
-              label: Text(
-                "Link Partner",
-                style: GoogleFonts.laila(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.deepPurple,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPartnerCard(User partner) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xffe0c3fc), Color(0xff8ec5fc)],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6)],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            "🎉 Partner Linked!",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              const Icon(Icons.person, color: Colors.deepPurple),
-              const SizedBox(width: 8),
-              Text(
-                "Name: ${partner.name}",
-                style: const TextStyle(fontSize: 16),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              const Icon(Icons.mail_outline, color: Colors.deepPurple),
-              const SizedBox(width: 8),
-              Text(
-                "Email: ${partner.email}",
-                style: const TextStyle(fontSize: 16),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xff8e2de2), Color(0xff4a00e0)],
-        ),
-        boxShadow: [
-          BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 4)),
-        ],
-      ),
-      child: Row(
-        children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => Navigator.pop(context),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            "Partner Invite",
-            style: GoogleFonts.laila(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-        ],
       ),
     );
   }

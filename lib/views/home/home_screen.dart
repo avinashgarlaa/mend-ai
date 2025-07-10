@@ -12,7 +12,7 @@ class HomeScreen extends ConsumerWidget {
     final user = ref.watch(userProvider);
 
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 178, 192, 232),
+      backgroundColor: const Color(0xFFF4F6FA),
       body: user == null
           ? const Center(child: Text("User not found"))
           : SafeArea(
@@ -20,44 +20,47 @@ class HomeScreen extends ConsumerWidget {
                 children: [
                   _buildHeader(context, ref),
                   Expanded(
-                    child: ListView(
+                    child: SingleChildScrollView(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 24,
                         vertical: 16,
                       ),
-                      children: [
-                        _buildProfileCard(user),
-                        SizedBox(height: 20),
-                        user.partnerId.isEmpty
-                            ? _buildInviteBanner(context, user)
-                            : _buildPartnerButton(context),
-                        const SizedBox(height: 24),
-                        Text(
-                          "Explore Features",
-                          style: GoogleFonts.laila(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.deepPurple,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildProfileCard(user),
+                          const SizedBox(height: 20),
+                          user.partnerId.isEmpty
+                              ? _buildInviteBanner(context, user)
+                              : _buildPartnerButton(context),
+                          const SizedBox(height: 24),
+                          Text(
+                            "Explore Mend",
+                            style: GoogleFonts.lato(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.deepPurple.shade700,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 16),
-                        _buildFeatureCard(
-                          context,
-                          title: "Start New Session",
-                          subtitle: "Begin a guided voice chat",
-                          icon: Icons.headset_mic_outlined,
-                          color: Colors.deepPurple,
-                          route: "/start-session",
-                        ),
-                        _buildFeatureCard(
-                          context,
-                          title: "Insights Dashboard",
-                          subtitle: "Track growth & communication patterns",
-                          icon: Icons.stacked_bar_chart_rounded,
-                          color: Colors.indigo,
-                          route: "/insights",
-                        ),
-                      ],
+                          const SizedBox(height: 16),
+                          _buildFeatureCard(
+                            context,
+                            title: "Start a New Session",
+                            subtitle: "Begin a real-time guided conversation",
+                            icon: Icons.headset_mic,
+                            color: Colors.deepPurple,
+                            route: "/start-session",
+                          ),
+                          _buildFeatureCard(
+                            context,
+                            title: "Insights Dashboard",
+                            subtitle: "Track your communication growth",
+                            icon: Icons.bar_chart,
+                            color: Colors.indigo,
+                            route: "/insights",
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -76,11 +79,7 @@ class HomeScreen extends ConsumerWidget {
           end: Alignment.bottomRight,
         ),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 10,
-            offset: Offset(0, 4),
-          ),
+          BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 3)),
         ],
       ),
       child: Row(
@@ -88,7 +87,7 @@ class HomeScreen extends ConsumerWidget {
         children: [
           Text(
             "Welcome to Mend",
-            style: GoogleFonts.laila(
+            style: GoogleFonts.lato(
               fontSize: 22,
               fontWeight: FontWeight.bold,
               color: Colors.white,
@@ -111,17 +110,17 @@ class HomeScreen extends ConsumerWidget {
         content: const Text("Are you sure you want to logout?"),
         actions: [
           TextButton(
-            child: const Text("Cancel"),
             onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple),
-            child: const Text("Logout"),
             onPressed: () {
               ref.read(userProvider.notifier).clearUser();
               Navigator.pop(context);
               Navigator.pushReplacementNamed(context, '/login');
             },
+            child: const Text("Logout"),
           ),
         ],
       ),
@@ -130,15 +129,14 @@ class HomeScreen extends ConsumerWidget {
 
   Widget _buildProfileCard(user) {
     return Card(
-      elevation: 6,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      margin: const EdgeInsets.only(top: 16, bottom: 12),
+      elevation: 5,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: Row(
           children: [
             CircleAvatar(
-              radius: 32,
+              radius: 30,
               backgroundColor: Colors.deepPurple,
               child: Text(
                 user.name[0].toUpperCase(),
@@ -152,7 +150,7 @@ class HomeScreen extends ConsumerWidget {
                 children: [
                   Text(
                     user.name,
-                    style: GoogleFonts.laila(
+                    style: GoogleFonts.lato(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
@@ -160,7 +158,7 @@ class HomeScreen extends ConsumerWidget {
                   const SizedBox(height: 4),
                   Text(
                     user.email,
-                    style: GoogleFonts.varelaRound(color: Colors.grey),
+                    style: GoogleFonts.varelaRound(color: Colors.grey[700]),
                   ),
                 ],
               ),
@@ -173,21 +171,20 @@ class HomeScreen extends ConsumerWidget {
 
   Widget _buildInviteBanner(BuildContext context, user) {
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 12),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xfffbc2eb), Color(0xffa6c1ee)],
         ),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6)],
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 5)],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             "Invite Your Partner",
-            style: GoogleFonts.laila(
+            style: GoogleFonts.lato(
               fontSize: 16,
               fontWeight: FontWeight.bold,
               color: Colors.deepPurple,
@@ -195,7 +192,7 @@ class HomeScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 6),
           const Text(
-            "Share this Partner ID to get started together.",
+            "Share your Partner ID to start growing together.",
             style: TextStyle(fontSize: 14),
           ),
           const SizedBox(height: 8),
@@ -227,17 +224,11 @@ class HomeScreen extends ConsumerWidget {
             width: double.infinity,
             child: ElevatedButton.icon(
               onPressed: () => Navigator.pushNamed(context, '/invite-partner'),
-              icon: const Icon(Icons.favorite_outline, color: Colors.white),
-              label: Text(
-                "Invite Partner",
-                style: GoogleFonts.laila(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+              icon: const Icon(Icons.favorite_outline),
+              label: const Text("Invite Partner"),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.deepPurple,
+                foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -251,30 +242,19 @@ class HomeScreen extends ConsumerWidget {
   }
 
   Widget _buildPartnerButton(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: SizedBox(
-        width: double.infinity,
-        child: OutlinedButton.icon(
-          onPressed: () {
-            Navigator.pushNamed(context, '/invite-partner');
-          },
-          icon: const Icon(Icons.favorite, color: Colors.deepPurple),
-          label: Text(
-            "View Partner Details",
-            style: GoogleFonts.laila(
-              color: Colors.deepPurple,
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-            ),
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: () => Navigator.pushNamed(context, '/invite-partner'),
+        icon: const Icon(Icons.favorite, color: Colors.deepPurple),
+        label: const Text("View Partner Details"),
+        style: OutlinedButton.styleFrom(
+          side: const BorderSide(color: Colors.deepPurple),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
           ),
-          style: OutlinedButton.styleFrom(
-            side: const BorderSide(color: Colors.deepPurple),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            padding: const EdgeInsets.symmetric(vertical: 14),
-          ),
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          foregroundColor: Colors.deepPurple,
         ),
       ),
     );
@@ -286,11 +266,10 @@ class HomeScreen extends ConsumerWidget {
     required String subtitle,
     required IconData icon,
     required String route,
-    Color color = Colors.deepPurple,
+    required Color color,
   }) {
     return Card(
-      elevation: 4,
-      margin: const EdgeInsets.symmetric(vertical: 10),
+      elevation: 3,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         onTap: () => Navigator.pushNamed(context, route),

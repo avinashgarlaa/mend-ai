@@ -15,16 +15,15 @@ final chatViewModelProvider = ChangeNotifierProvider<ChatViewModel>(
 class ChatViewModel extends ChangeNotifier {
   final WebSocketService _wsService = WebSocketService();
   final List<String> _messages = [];
+  final Dio _dio = Dio();
 
   StreamSubscription<String>? _subscription;
   bool _isConnected = false;
 
-  final Dio _dio = Dio(); // ✅ for moderation HTTP request
-
-  /// 🧾 All messages (received and local)
+  /// 🧾 All chat messages
   List<String> get messages => List.unmodifiable(_messages);
 
-  /// 🔁 Realtime connection status
+  /// 🌐 WebSocket connection state
   bool get isConnected => _isConnected;
 
   /// 📡 Connect WebSocket
@@ -51,68 +50,85 @@ class ChatViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 💬 Send structured JSON message with AI moderation
+  /// 💬 Send message + get AI moderation from backend
   Future<void> sendMessageWithModeration({
     required String speakerId,
     required String sessionId,
     required String text,
-    required Function(String reply)? onAIReply,
-    required Function()? onInterrupt,
+    Function(String reply)? onAIReply,
+    Function()? onInterrupt,
   }) async {
     if (!_isConnected || text.trim().isEmpty) return;
 
-    // Local echo
-    final message = {
-      "speakerId": speakerId,
-      "sessionId": sessionId,
-      "text": text.trim(),
-      "timestamp": DateTime.now().millisecondsSinceEpoch,
-    };
+    final cleanedText = text.trim();
+
+    // 🟦 Send to WebSocket
     _wsService.sendMessage(
       speakerId: speakerId,
       sessionId: sessionId,
-      text: text.trim(),
+      text: cleanedText,
     );
+
+    final message = {
+      "speakerId": speakerId,
+      "sessionId": sessionId,
+      "text": cleanedText,
+      "timestamp": DateTime.now().millisecondsSinceEpoch,
+    };
     _messages.add(jsonEncode(message));
     notifyListeners();
 
+    // 🌐 Call moderation API
     try {
       final res = await _dio.post(
         'https://mend-backend-j0qd.onrender.com/api/moderate',
-        data: {"transcript": text.trim(), "speaker": speakerId},
+        data: {"transcript": cleanedText, "speaker": speakerId},
       );
 
       final aiReply = res.data['aiReply']?.toString();
-      final interrupt = res.data['interrupt'] == true;
+      final interrupt = res.data['interrupt']?.toString();
 
       if (aiReply != null && aiReply.isNotEmpty) {
-        final aiMsg = {
+        final aiMessage = {
           "speakerId": "AI",
           "sessionId": sessionId,
           "text": aiReply,
           "timestamp": DateTime.now().millisecondsSinceEpoch,
         };
-        _messages.add(jsonEncode(aiMsg));
+        _messages.add(jsonEncode(aiMessage));
         notifyListeners();
 
         if (onAIReply != null) onAIReply(aiReply);
       }
 
-      if (interrupt && onInterrupt != null) {
+      if (interrupt != null && interrupt.isNotEmpty && onInterrupt != null) {
         onInterrupt();
       }
     } catch (e) {
-      debugPrint("❌ Moderation failed: $e");
+      debugPrint('❌ AI Moderation failed: $e');
     }
   }
 
-  /// ➕ Add message manually
+  /// 🧠 Preload historical messages
+  void loadPreviousMessages(List<dynamic> messagesJson) {
+    _messages.clear();
+    for (final msg in messagesJson) {
+      try {
+        _messages.add(jsonEncode(msg));
+      } catch (_) {
+        debugPrint('⚠️ Invalid message skipped');
+      }
+    }
+    notifyListeners();
+  }
+
+  /// ➕ Add single message manually
   void addMessage(String msg) {
     _messages.add(msg);
     notifyListeners();
   }
 
-  /// ❌ Disconnect WebSocket
+  /// 🔌 Disconnect and reset
   void disconnect() {
     _subscription?.cancel();
     _wsService.disconnect();

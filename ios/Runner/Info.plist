@@ -28,6 +28,13 @@
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
+
+	<!-- ✅ Permissions -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>We need access to your microphone for voice chat.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>We use speech recognition to let you speak during chat sessions.</string>
+
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

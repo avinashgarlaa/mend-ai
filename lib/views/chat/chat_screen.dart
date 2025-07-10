@@ -2,11 +2,15 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
+import 'package:mend_ai/models/session_model.dart';
+import 'package:mend_ai/models/user_model.dart';
 import 'package:mend_ai/providers/user_provider.dart';
+import 'package:mend_ai/viewmodels/auth_viewmodel.dart';
 import 'package:mend_ai/viewmodels/chat_viewmodel.dart';
 import 'package:mend_ai/viewmodels/session_viewmodel.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
-import 'package:intl/intl.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({super.key});
@@ -20,14 +24,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
   late stt.SpeechToText _speech;
   late FlutterTts _flutterTts;
+
   bool _isListening = false;
-  Color _bgColor = Colors.white;
+  Color _bgColor = const Color(0xfff0f4ff);
+
+  User? partner;
+  Session? session;
+
+  final List<Color> gradientColors = [Color(0xff8e2de2), Color(0xff4a00e0)];
 
   @override
   void initState() {
     super.initState();
     _initVoice();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _connectSocket());
+    _loadInitialData();
   }
 
   void _initVoice() {
@@ -38,30 +48,58 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ..setSpeechRate(0.45);
   }
 
-  void _connectSocket() {
+  Future<void> _loadInitialData() async {
     final user = ref.read(userProvider);
-    final session = ref.read(sessionViewModelProvider);
-    if (user != null && session != null) {
-      final chatVM = ref.read(chatViewModelProvider);
-      chatVM.connect(user.id, session.id);
-      chatVM.addListener(_scrollToBottom);
+    if (user == null || user.partnerId.isEmpty) return;
+
+    final authVM = ref.read(authViewModelProvider);
+    final sessionVM = ref.read(sessionViewModelProvider.notifier);
+
+    try {
+      final partnerRes = await authVM.getPartnerDetails(user.partnerId);
+      final sessionRes = await sessionVM.getActiveSession(user.id);
+
+      setState(() {
+        partner = partnerRes;
+        session = sessionRes;
+      });
+
+      if (sessionRes != null) {
+        final chatVM = ref.read(chatViewModelProvider);
+        chatVM.loadPreviousMessages(sessionRes.messages);
+        chatVM.connect(user.id, sessionRes.id);
+        chatVM.addListener(_scrollToBottom);
+
+        Future.delayed(const Duration(milliseconds: 600), () {
+          chatVM.sendMessageWithModeration(
+            speakerId: "AI",
+            sessionId: sessionRes.id,
+            text:
+                "Welcome to Mend. What would you like to work on together today?",
+            onAIReply: (reply) => _flutterTts.speak(reply),
+            onInterrupt: null,
+          );
+        });
+      }
+    } catch (_) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Failed to load session or partner.")),
+      );
     }
   }
 
-  Future<void> _sendMessage([String? msg]) async {
+  Future<void> _sendMessage([String? input]) async {
     final user = ref.read(userProvider);
-    final session = ref.read(sessionViewModelProvider);
     final chatVM = ref.read(chatViewModelProvider);
-    final text = msg ?? _controller.text.trim();
+    final text = input ?? _controller.text.trim();
+
     if (text.isEmpty || user == null || session == null) return;
 
     await chatVM.sendMessageWithModeration(
       speakerId: user.id,
-      sessionId: session.id,
+      sessionId: session!.id,
       text: text,
-      onAIReply: (reply) async {
-        await _flutterTts.speak(reply);
-      },
+      onAIReply: (reply) async => await _flutterTts.speak(reply),
       onInterrupt: _flashInterruptWarning,
     );
 
@@ -69,12 +107,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   void _startListening() async {
-    if (!_isListening) {
+    if (_isListening) {
+      _speech.stop();
+      setState(() => _isListening = false);
+    } else {
       final available = await _speech.initialize(
-        onStatus: (status) => debugPrint('Speech: $status'),
+        onStatus: (status) => debugPrint('Speech status: $status'),
         onError: (error) => debugPrint('Speech error: $error'),
       );
-
       if (available) {
         setState(() => _isListening = true);
         _speech.listen(
@@ -82,74 +122,140 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             if (result.finalResult) {
               setState(() => _isListening = false);
               _sendMessage(result.recognizedWords);
-              _speech.stop();
             }
           },
         );
       }
-    } else {
-      _speech.stop();
-      setState(() => _isListening = false);
     }
   }
 
   void _scrollToBottom() {
-    Future.delayed(const Duration(milliseconds: 200), () {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
+          _scrollController.position.maxScrollExtent + 100,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOutCubic,
         );
       }
     });
   }
 
   void _flashInterruptWarning() {
+    final partnerName = partner?.name ?? "your partner";
     setState(() => _bgColor = Colors.red.shade100);
-    Future.delayed(const Duration(milliseconds: 600), () {
-      setState(() => _bgColor = Colors.white);
+    _flutterTts.speak("Please let $partnerName finish their thought.");
+    Future.delayed(const Duration(milliseconds: 800), () {
+      setState(() => _bgColor = const Color(0xfff0f4ff));
     });
   }
 
   void _endSession() async {
-    final session = ref.read(sessionViewModelProvider);
-    if (session != null) {
-      final confirm = await showDialog<bool>(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text("End Session?"),
-          content: const Text("Are you sure you want to end this session?"),
-          actions: [
-            TextButton(
-              child: const Text("Cancel"),
-              onPressed: () => Navigator.pop(context, false),
-            ),
-            ElevatedButton(
-              child: const Text("End"),
-              onPressed: () => Navigator.pop(context, true),
-            ),
-          ],
-        ),
-      );
+    if (session == null) return;
 
-      if (confirm == true) {
-        await ref
-            .read(sessionViewModelProvider.notifier)
-            .endSession(session.id);
-        if (mounted) Navigator.pop(context);
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("End Session"),
+        content: const Text("Are you sure you want to end this session?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("End"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final ended = await ref
+          .read(sessionViewModelProvider.notifier)
+          .endSession(session!.id);
+
+      if (ended && mounted) {
+        Navigator.pushReplacementNamed(context, '/post-resolution');
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Failed to end session.")));
       }
     }
   }
 
-  @override
-  void dispose() {
-    ref.read(chatViewModelProvider).disconnect();
-    _speech.stop();
-    _flutterTts.stop();
-    _controller.dispose();
-    _scrollController.dispose();
-    super.dispose();
+  Widget _buildMessageBubble({
+    required String text,
+    required String label,
+    required bool isSelf,
+    required bool isAI,
+    required bool isBlue,
+    required int timestamp,
+  }) {
+    final color = isAI
+        ? Colors.amber.shade100
+        : isSelf
+        ? (isBlue ? Colors.blue.shade100 : Colors.pink.shade100)
+        : (isBlue ? Colors.pink.shade100 : Colors.blue.shade100);
+
+    final align = isAI
+        ? Alignment.center
+        : isSelf
+        ? Alignment.centerRight
+        : Alignment.centerLeft;
+
+    final borderRadius = BorderRadius.only(
+      topLeft: const Radius.circular(18),
+      topRight: const Radius.circular(18),
+      bottomLeft: Radius.circular(isSelf ? 18 : 0),
+      bottomRight: Radius.circular(isSelf ? 0 : 18),
+    );
+
+    return Align(
+      alignment: align,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: borderRadius,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 6,
+              offset: const Offset(2, 3),
+            ),
+          ],
+        ),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.75,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: GoogleFonts.lato(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: Colors.deepPurple,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(text, style: GoogleFonts.lato(fontSize: 16)),
+            const SizedBox(height: 4),
+            Text(
+              DateFormat.Hm().format(
+                DateTime.fromMillisecondsSinceEpoch(timestamp),
+              ),
+              style: const TextStyle(fontSize: 10, color: Colors.black45),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -159,139 +265,158 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     return Scaffold(
       backgroundColor: _bgColor,
-      appBar: AppBar(
-        title: const Text("🗣️ Live Voice Chat"),
-        backgroundColor: Colors.deepPurple,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.stop_circle_outlined),
-            tooltip: "End Session",
-            onPressed: _endSession,
-          ),
-          IconButton(
-            icon: const Icon(Icons.close),
-            tooltip: "Exit",
-            onPressed: () => Navigator.pop(context),
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.all(12),
-              itemCount: messages.length,
-              itemBuilder: (context, index) {
-                final raw = messages[index];
-                String text = raw;
-                String? speaker;
-                bool isSelf = false;
-                bool isAI = false;
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: ListView.builder(
+                controller: _scrollController,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 16,
+                ),
+                itemCount: messages.length,
+                itemBuilder: (_, index) {
+                  final raw = messages[index];
+                  String text = raw;
+                  String? speaker;
+                  bool isSelf = false;
+                  bool isAI = false;
+                  int timestamp = DateTime.now().millisecondsSinceEpoch;
 
-                try {
-                  final parsed = jsonDecode(raw);
-                  text = parsed['text'] ?? '';
-                  speaker = parsed['speakerId'] ?? '';
-                  isSelf = speaker == user?.id;
-                  isAI = speaker == 'AI';
-                } catch (_) {}
+                  try {
+                    final parsed = jsonDecode(raw);
+                    text = parsed['text'] ?? '';
+                    speaker = parsed['speakerId'];
+                    timestamp = parsed['timestamp'] ?? timestamp;
+                    isSelf = speaker == user?.id;
+                    isAI = speaker == 'AI';
+                  } catch (_) {}
 
-                final bgColor = isAI
-                    ? Colors.amber.shade100
-                    : isSelf
-                    ? (user?.colorCode == "blue"
-                          ? Colors.blue.shade100
-                          : Colors.pink.shade100)
-                    : (user?.colorCode == "blue"
-                          ? Colors.pink.shade100
-                          : Colors.blue.shade100);
+                  final isBlue = user?.colorCode == 'blue';
+                  final label = isAI
+                      ? "AI"
+                      : isSelf
+                      ? user?.name ?? "You"
+                      : partner?.name ?? "Partner";
 
-                final alignment = isAI
-                    ? Alignment.center
-                    : isSelf
-                    ? Alignment.centerRight
-                    : Alignment.centerLeft;
+                  return _buildMessageBubble(
+                    text: text,
+                    label: label,
+                    isSelf: isSelf,
+                    isAI: isAI,
+                    isBlue: isBlue,
+                    timestamp: timestamp,
+                  );
+                },
+              ),
+            ),
 
-                final nameLabel = isAI
-                    ? "AI"
-                    : isSelf
-                    ? "You"
-                    : "Partner";
-
-                return AnimatedOpacity(
-                  duration: const Duration(milliseconds: 300),
-                  opacity: 1,
-                  child: Align(
-                    alignment: alignment,
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(vertical: 6),
-                      padding: const EdgeInsets.all(12),
-                      constraints: BoxConstraints(
-                        maxWidth: MediaQuery.of(context).size.width * 0.75,
-                      ),
-                      decoration: BoxDecoration(
-                        color: bgColor,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Chip(
-                            label: Text(
-                              nameLabel,
-                              style: const TextStyle(fontSize: 12),
+            // Input + Buttons
+            Container(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 16),
+              color: Colors.white,
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _controller,
+                          style: GoogleFonts.lato(),
+                          decoration: InputDecoration(
+                            hintText: "Type or speak...",
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 12,
+                              horizontal: 16,
                             ),
-                            backgroundColor: Colors.deepPurple.shade100,
-                            padding: EdgeInsets.zero,
-                          ),
-                          const SizedBox(height: 6),
-                          Text(text, style: const TextStyle(fontSize: 16)),
-                          const SizedBox(height: 4),
-                          Text(
-                            DateFormat.Hm().format(DateTime.now()),
-                            style: const TextStyle(
-                              fontSize: 10,
-                              color: Colors.black54,
+                            filled: true,
+                            fillColor: const Color(0xfff0f0f0),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(20),
+                              borderSide: BorderSide.none,
                             ),
                           ),
-                        ],
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: Icon(
+                          _isListening ? Icons.mic : Icons.mic_none,
+                          color: gradientColors.first,
+                        ),
+                        onPressed: _startListening,
+                      ),
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(colors: gradientColors),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: IconButton(
+                          icon: const Icon(Icons.send, color: Colors.white),
+                          onPressed: _sendMessage,
+                        ),
+                      ),
+                    ],
                   ),
-                );
-              },
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.stop_circle_outlined),
+                          onPressed: _endSession,
+                          label: const Text("End Session"),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.redAccent,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.insights),
+                          onPressed: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text("Insights coming soon..."),
+                              ),
+                            );
+                          },
+                          label: const Text("View Insights"),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: gradientColors.first,
+                            side: BorderSide(color: gradientColors.first),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    decoration: const InputDecoration(
-                      hintText: "Type or speak...",
-                      border: OutlineInputBorder(),
-                    ),
+
+            if (_isListening)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Container(
+                  width: 80,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: gradientColors),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: Icon(
-                    _isListening ? Icons.mic : Icons.mic_none,
-                    color: Colors.deepPurple,
-                  ),
-                  onPressed: _startListening,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.send, color: Colors.deepPurple),
-                  onPressed: _sendMessage,
-                ),
-              ],
-            ),
-          ),
-        ],
+              ),
+          ],
+        ),
       ),
     );
   }

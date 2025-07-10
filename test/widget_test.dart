@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:mend_ai/app.dart';
+import 'package:mend_ai/main.dart';
 
 void main() {
   testWidgets('MendApp loads onboarding screen', (WidgetTester tester) async {

@@ -93,9 +93,7 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
         gradient: LinearGradient(
           colors: [Color(0xff8e2de2), Color(0xff4a00e0)],
         ),
-        boxShadow: [
-          BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 4)),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8)],
       ),
       child: Row(
         children: [
@@ -118,54 +116,38 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
   }
 
   Widget _buildRow(String label, String value) {
-    return Row(
-      children: [
-        Text("$label: ", style: const TextStyle(fontWeight: FontWeight.w600)),
-        Expanded(child: Text(value)),
-      ],
-    );
-  }
-
-  Widget _buildUserDetailsCard(User user) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildRow("You", user.name),
-            const SizedBox(height: 8),
-            _buildRow("Email", user.email),
-          ],
-        ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Text("$label: ", style: const TextStyle(fontWeight: FontWeight.w600)),
+          Expanded(child: Text(value)),
+        ],
       ),
     );
   }
 
-  Widget _buildPartnerCard(User partner) {
+  Widget _buildDetailsCard(String title, List<Widget> content, {Color? color}) {
     return Card(
-      color: Colors.deepPurple.shade50,
-      elevation: 3,
+      elevation: 4,
+      color: color ?? Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              "Partner Details",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-                color: Colors.deepPurple,
+            if (title.isNotEmpty)
+              Text(
+                title,
+                style: GoogleFonts.laila(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.deepPurple,
+                ),
               ),
-            ),
-            const SizedBox(height: 10),
-            _buildRow("Name", partner.name),
-            const SizedBox(height: 8),
-            _buildRow("Email", partner.email),
+            if (title.isNotEmpty) const SizedBox(height: 12),
+            ...content,
           ],
         ),
       ),
@@ -176,9 +158,9 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           "Session Context (optional)",
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: GoogleFonts.varelaRound(fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 8),
         TextField(
@@ -226,8 +208,8 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
             : Text(
                 isOngoing ? "Join Ongoing Session" : "Start Voice Session",
                 style: const TextStyle(
-                  color: Colors.white,
                   fontWeight: FontWeight.bold,
+                  color: Colors.white,
                 ),
               ),
         style: ElevatedButton.styleFrom(
@@ -273,10 +255,17 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
                         color: Colors.deepPurple,
                       ),
                     ),
+                    const SizedBox(height: 20),
+                    _buildDetailsCard("", [
+                      _buildRow("You", user.name),
+                      _buildRow("Email", user.email),
+                    ]),
                     const SizedBox(height: 16),
-                    _buildUserDetailsCard(user),
-                    const SizedBox(height: 16),
-                    if (partner != null) _buildPartnerCard(partner!),
+                    if (partner != null)
+                      _buildDetailsCard("Partner Details", [
+                        _buildRow("Name", partner!.name),
+                        _buildRow("Email", partner!.email),
+                      ], color: Colors.deepPurple.shade50),
                     const SizedBox(height: 24),
                     _buildSessionContextInput(),
                     const SizedBox(height: 30),
