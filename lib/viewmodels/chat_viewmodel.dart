@@ -1,13 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
-
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mend_ai/services/mend_ws.dart';
 
-/// 🔌 Riverpod provider
 final chatViewModelProvider = ChangeNotifierProvider<ChatViewModel>(
   (ref) => ChatViewModel(),
 );
@@ -20,13 +17,12 @@ class ChatViewModel extends ChangeNotifier {
   StreamSubscription<String>? _subscription;
   bool _isConnected = false;
 
-  /// 🧾 All chat messages
-  List<String> get messages => List.unmodifiable(_messages);
+  int _userMessageCount = 0;
+  bool _lastAskedToSelf = false;
 
-  /// 🌐 WebSocket connection state
+  List<String> get messages => List.unmodifiable(_messages);
   bool get isConnected => _isConnected;
 
-  /// 📡 Connect WebSocket
   void connect(String userId, String sessionId) {
     if (_isConnected) return;
 
@@ -50,7 +46,6 @@ class ChatViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 💬 Send message + get AI moderation from backend
   Future<void> sendMessageWithModeration({
     required String speakerId,
     required String sessionId,
@@ -61,32 +56,28 @@ class ChatViewModel extends ChangeNotifier {
     if (!_isConnected || text.trim().isEmpty) return;
 
     final cleanedText = text.trim();
+    _userMessageCount++;
 
-    // 🟦 Send to WebSocket
+    // ✅ Send only — don't append locally
     _wsService.sendMessage(
       speakerId: speakerId,
       sessionId: sessionId,
       text: cleanedText,
     );
 
-    final message = {
-      "speakerId": speakerId,
-      "sessionId": sessionId,
-      "text": cleanedText,
-      "timestamp": DateTime.now().millisecondsSinceEpoch,
-    };
-    _messages.add(jsonEncode(message));
-    notifyListeners();
-
-    // 🌐 Call moderation API
     try {
       final res = await _dio.post(
         'https://mend-backend-j0qd.onrender.com/api/moderate',
         data: {"transcript": cleanedText, "speaker": speakerId},
+        options: Options(headers: {'Content-Type': 'application/json'}),
       );
 
       final aiReply = res.data['aiReply']?.toString();
-      final interrupt = res.data['interrupt']?.toString();
+      final interrupt = res.data['interrupt'];
+
+      if (interrupt == true || interrupt == 'true') {
+        if (onInterrupt != null) onInterrupt();
+      }
 
       if (aiReply != null && aiReply.isNotEmpty) {
         final aiMessage = {
@@ -95,21 +86,51 @@ class ChatViewModel extends ChangeNotifier {
           "text": aiReply,
           "timestamp": DateTime.now().millisecondsSinceEpoch,
         };
+
         _messages.add(jsonEncode(aiMessage));
         notifyListeners();
 
         if (onAIReply != null) onAIReply(aiReply);
       }
 
-      if (interrupt != null && interrupt.isNotEmpty && onInterrupt != null) {
-        onInterrupt();
+      if (interrupt != null && interrupt.isNotEmpty) {
+        if (onInterrupt != null) onInterrupt();
+      }
+
+      if (_userMessageCount % 3 == 0) {
+        await _askReflectiveQuestion(sessionId);
       }
     } catch (e) {
       debugPrint('❌ AI Moderation failed: $e');
     }
   }
 
-  /// 🧠 Preload historical messages
+  Future<void> _askReflectiveQuestion(String sessionId) async {
+    final questions = [
+      "Can you tell me a time when you felt truly heard?",
+      "What does support from your partner look like?",
+      "How would you like to feel more connected?",
+      "What's something your partner does that you appreciate?",
+      "How do you handle disagreements normally?",
+      "What do you need from your partner right now?",
+    ];
+
+    final randomQuestion = (questions..shuffle()).first;
+    final target = _lastAskedToSelf ? "your partner" : "you";
+    final prompt = "To $target: $randomQuestion";
+    _lastAskedToSelf = !_lastAskedToSelf;
+
+    final aiMessage = {
+      "speakerId": "AI",
+      "sessionId": sessionId,
+      "text": prompt,
+      "timestamp": DateTime.now().millisecondsSinceEpoch,
+    };
+
+    _messages.add(jsonEncode(aiMessage));
+    notifyListeners();
+  }
+
   void loadPreviousMessages(List<dynamic> messagesJson) {
     _messages.clear();
     for (final msg in messagesJson) {
@@ -122,13 +143,11 @@ class ChatViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// ➕ Add single message manually
   void addMessage(String msg) {
     _messages.add(msg);
     notifyListeners();
   }
 
-  /// 🔌 Disconnect and reset
   void disconnect() {
     _subscription?.cancel();
     _wsService.disconnect();

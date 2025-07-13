@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -14,24 +15,27 @@ class PostResolutionScreen extends ConsumerStatefulWidget {
 
 class _PostResolutionScreenState extends ConsumerState<PostResolutionScreen> {
   final gratitudeController = TextEditingController();
-  final reflectionController = TextEditingController();
-  final bondingController = TextEditingController();
-
+  final sharedFeelingsController = TextEditingController();
+  int attachmentScore = 3;
   bool _isSubmitting = false;
 
   void _submit() async {
     final user = ref.read(userProvider);
     final api = ref.read(mendServiceProvider);
 
-    if (user == null) return;
+    if (user == null || user.currentSessionId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("User or session ID is missing.")),
+      );
+      return;
+    }
 
     final gratitude = gratitudeController.text.trim();
-    final reflection = reflectionController.text.trim();
-    final bonding = bondingController.text.trim();
+    final sharedFeelings = sharedFeelingsController.text.trim();
 
-    if (gratitude.isEmpty || reflection.isEmpty || bonding.isEmpty) {
+    if (gratitude.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please complete all fields.")),
+        const SnackBar(content: Text("Please fill in the gratitude section.")),
       );
       return;
     }
@@ -40,125 +44,249 @@ class _PostResolutionScreenState extends ConsumerState<PostResolutionScreen> {
 
     final payload = {
       "userId": user.id,
-      "sessionId": user.currentSessionId ?? "",
+      "sessionId": user.currentSessionId,
       "gratitude": gratitude,
-      "reflection": reflection,
-      "bondingActivity": bonding,
+      if (sharedFeelings.isNotEmpty) "sharedFeelings": sharedFeelings,
+      "attachmentScore": attachmentScore,
     };
 
     try {
       await api.submitPostResolution(payload);
-
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Reflection saved.")));
-        Navigator.pushNamed(context, '/reflection'); // Adjust route if needed
-      }
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text("Reflection Saved"),
+          content: const Text("Thank you for your honest reflection."),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pushNamed(context, '/reflection'),
+              child: const Text("Continue"),
+            ),
+          ],
+        ),
+      );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text("Error: ${e.toString()}")));
     } finally {
-      setState(() => _isSubmitting = false);
+      if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
+  Widget _buildGlassHeader(BuildContext context, WidgetRef ref) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
         child: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xfff5f7fa), Color(0xffe0ecff)],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-            ),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withOpacity(0.08)),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Text(
-                    "Let’s reflect on your session",
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.lato(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.deepPurple.shade700,
-                    ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // IconButton(
+              //   icon: const Icon(
+              //     Icons.arrow_back_ios_new_rounded,
+              //     color: Colors.black54,
+              //   ),
+              //   onPressed: () => Navigator.pushNamed(context, "/home"),
+              // ),
+              const SizedBox(width: 8),
+              RichText(
+                text: TextSpan(
+                  style: GoogleFonts.montserrat(
+                    fontSize: 21,
+                    fontWeight: FontWeight.bold,
                   ),
-                ),
-                const SizedBox(height: 30),
-
-                _buildSectionTitle("1. Express Gratitude"),
-                _buildPromptField(
-                  hint: "What did your partner do that you appreciated?",
-                  controller: gratitudeController,
-                ),
-                const SizedBox(height: 30),
-
-                _buildSectionTitle("2. Personal Reflection"),
-                _buildPromptField(
-                  hint: "What’s something meaningful you learned today?",
-                  controller: reflectionController,
-                ),
-                const SizedBox(height: 30),
-
-                _buildSectionTitle("3. Suggest a Bonding Activity"),
-                _buildPromptField(
-                  hint: "Suggest something fun or meaningful to do together.",
-                  controller: bondingController,
-                ),
-                const SizedBox(height: 40),
-
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _isSubmitting ? null : _submit,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.deepPurple,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      textStyle: GoogleFonts.lato(fontSize: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
+                  children: [
+                    TextSpan(
+                      text: "Post-Session ",
+                      style: GoogleFonts.aBeeZee(color: Colors.black87),
                     ),
-                    child: _isSubmitting
-                        ? const CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation(Colors.white),
-                          )
-                        : const Text("Continue to Reflection"),
-                  ),
+                    TextSpan(
+                      text: "Reflection",
+                      style: GoogleFonts.aBeeZee(color: Colors.blueAccent),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildSectionTitle(String text) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          text,
-          style: GoogleFonts.lato(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.deepPurple.shade800,
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.transparent,
+      body: Stack(
+        children: [
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Color(0xffc2e9fb),
+                  Color(0xffa1c4fd),
+                  Color(0xffcfd9df),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: SizedBox.expand(),
           ),
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 36, 20, 48),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                  child: Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: Colors.white.withOpacity(0.08)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildGlassHeader(context, ref),
+
+                        const SizedBox(height: 20),
+
+                        _buildSectionTitle("  1. Gratitude"),
+                        _buildPromptField(
+                          hint:
+                              "What did your partner do that you appreciated?",
+                          controller: gratitudeController,
+                        ),
+
+                        const SizedBox(height: 24),
+                        _buildSectionTitle("  2. Shared Feelings (Optional)"),
+                        _buildPromptField(
+                          hint: "Anything emotional you'd like to share?",
+                          controller: sharedFeelingsController,
+                        ),
+
+                        const SizedBox(height: 24),
+                        _buildSectionTitle("  3. Attachment Score (1–5)"),
+                        SliderTheme(
+                          data: SliderTheme.of(context).copyWith(
+                            activeTrackColor: Colors.blueAccent,
+                            inactiveTrackColor: Colors.white30,
+                            trackHeight: 6,
+                            thumbColor: Colors.blueAccent,
+                            overlayColor: Colors.blueAccent.withOpacity(0.2),
+                            thumbShape: const RoundSliderThumbShape(
+                              enabledThumbRadius: 10,
+                            ),
+                            overlayShape: const RoundSliderOverlayShape(
+                              overlayRadius: 18,
+                            ),
+                            valueIndicatorShape:
+                                const PaddleSliderValueIndicatorShape(),
+                            valueIndicatorColor: const Color.fromRGBO(
+                              68,
+                              138,
+                              255,
+                              1,
+                            ),
+                            valueIndicatorTextStyle: GoogleFonts.lato(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          child: Slider(
+                            min: 1,
+                            max: 5,
+                            divisions: 4,
+                            label: attachmentScore.toString(),
+                            value: attachmentScore.toDouble(),
+                            onChanged: (val) {
+                              setState(() => attachmentScore = val.toInt());
+                            },
+                          ),
+                        ),
+
+                        const SizedBox(height: 32),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: _isSubmitting ? null : _submit,
+                            icon: Icon(
+                              Icons.check_circle_outline,
+                              color: Colors.white,
+                            ),
+                            label: _isSubmitting
+                                ? const SizedBox(
+                                    height: 24,
+                                    width: 24,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                      valueColor: AlwaysStoppedAnimation(
+                                        Colors.white,
+                                      ),
+                                    ),
+                                  )
+                                : Text(
+                                    "Save Reflection",
+                                    style: GoogleFonts.aBeeZee(
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blueAccent,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              textStyle: GoogleFonts.lato(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        text,
+        style: GoogleFonts.aBeeZee(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          color: Colors.blueAccent,
         ),
-        const SizedBox(height: 6),
-        Container(height: 2, width: 60, color: Colors.deepPurple.shade200),
-        const SizedBox(height: 12),
-      ],
+      ),
     );
   }
 
@@ -172,15 +300,15 @@ class _PostResolutionScreenState extends ConsumerState<PostResolutionScreen> {
       style: GoogleFonts.lato(fontSize: 15),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: Colors.black45),
+        hintStyle: TextStyle(color: Colors.grey.shade700),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: Colors.white.withOpacity(0.15),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 14,
         ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(18),
           borderSide: BorderSide.none,
         ),
       ),

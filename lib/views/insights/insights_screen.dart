@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -35,7 +36,7 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
       sessions = res.data['sessions'];
       reflections = res.data['reflections'];
     } catch (e) {
-      print("⚠️ Error loading insights: $e");
+      debugPrint("⚠️ Error loading insights: $e");
     } finally {
       setState(() => isLoading = false);
     }
@@ -43,7 +44,7 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
 
   String formatDate(int timestamp) {
     return DateFormat(
-      'MMM d, yyyy – hh:mm a',
+      'MMM d, yyyy • h:mm a',
     ).format(DateTime.fromMillisecondsSinceEpoch(timestamp * 1000));
   }
 
@@ -61,210 +62,315 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
     }).toList();
   }
 
-  Widget _buildSectionTitle(String title) {
+  Widget _glassCard({required Widget child}) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        gradient: LinearGradient(
+          colors: [
+            Colors.white.withOpacity(0.1),
+            Colors.white.withOpacity(0.05),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+          child: Padding(padding: const EdgeInsets.all(20), child: child),
+        ),
+      ),
+    );
+  }
+
+  Widget _sectionTitle(String title) {
     return Padding(
-      padding: const EdgeInsets.only(top: 24, bottom: 12, left: 16, right: 16),
+      padding: const EdgeInsets.fromLTRB(26, 05, 20, 05),
       child: Text(
         title,
         style: GoogleFonts.lato(
           fontSize: 22,
           fontWeight: FontWeight.bold,
-          color: Colors.deepPurple,
+          color: Colors.black.withOpacity(0.95),
         ),
       ),
     );
   }
 
-  Widget _buildSessionCard(Map<String, dynamic> session, String userId) {
-    final otherId = session['partnerA'] == userId
-        ? session['partnerB']
-        : session['partnerA'];
+  Widget _buildSessionCard(int index, Map<String, dynamic> session) {
+    final createdAt = session['createdAt'] ?? 0;
     final resolved = session['resolved'] == true;
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 5,
-            offset: const Offset(1, 3),
+    return _glassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.people_alt_rounded,
+                color: Colors.black.withOpacity(0.75),
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                "Session ${index + 1}",
+                style: GoogleFonts.lato(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black.withOpacity(0.75),
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  color: resolved
+                      ? Colors.black.withOpacity(0.25)
+                      : Colors.pinkAccent.withOpacity(0.2),
+                ),
+                child: Text(
+                  resolved ? "Resolved" : "Unresolved",
+                  style: GoogleFonts.lato(
+                    fontSize: 12,
+                    color: resolved ? Colors.white : Colors.pinkAccent.shade100,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 12,
-        ),
-        title: Text(
-          "Session with $otherId",
-          style: GoogleFonts.lato(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
-        subtitle: Text(
-          "Resolved: ${resolved ? 'Yes' : 'No'}",
-          style: GoogleFonts.lato(),
-        ),
-        trailing: Text(
-          formatDate(session['createdAt']),
-          style: GoogleFonts.lato(fontSize: 11, color: Colors.black54),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildReflectionCard(dynamic reflection) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 5,
-            offset: const Offset(1, 3),
-          ),
-        ],
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 12,
-        ),
-        title: Text(
-          reflection['text'] ?? "No reflection provided.",
-          style: GoogleFonts.lato(fontSize: 15, fontWeight: FontWeight.w500),
-          maxLines: 3,
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: Text(
-          "Session ID: ${reflection['sessionId']}",
-          style: GoogleFonts.lato(fontSize: 13),
-        ),
-        trailing: Text(
-          formatDate(reflection['timestamp']),
-          style: GoogleFonts.lato(fontSize: 11, color: Colors.black54),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xff8e2de2), Color(0xff4a00e0)],
-        ),
-        boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8)],
-      ),
-      child: SafeArea(
-        child: Row(
-          children: [
-            IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
-              onPressed: () => Navigator.pop(context),
+          const SizedBox(height: 8),
+          Text(
+            formatDate(createdAt),
+            style: GoogleFonts.lato(
+              fontSize: 13,
+              color: Colors.black38.withOpacity(0.8),
             ),
-            const SizedBox(width: 8),
-            Text(
-              "Insights",
-              style: GoogleFonts.laila(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReflectionCard(int index, dynamic reflection) {
+    return _glassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "“${reflection['text'] ?? "No reflection provided."}”",
+            style: GoogleFonts.lato(
+              fontSize: 14.5,
+              fontStyle: FontStyle.italic,
+              color: Colors.black54.withOpacity(0.96),
+            ),
+            maxLines: 5,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.bottomRight,
+            child: Text(
+              formatDate(reflection['timestamp']),
+              style: GoogleFonts.lato(
+                fontSize: 12,
+                color: Colors.black38.withOpacity(0.7),
               ),
             ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGlassHeader(BuildContext context, WidgetRef ref) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withOpacity(0.08)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              IconButton(
+                icon: const Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: Colors.black,
+                  size: 20,
+                ),
+                onPressed: () => Navigator.pop(context),
+              ),
+              const SizedBox(width: 8),
+              RichText(
+                text: TextSpan(
+                  style: GoogleFonts.montserrat(
+                    fontSize: 21,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  children: [
+                    TextSpan(
+                      text: "Insights ",
+                      style: GoogleFonts.aBeeZee(color: Colors.black87),
+                    ),
+                    TextSpan(
+                      text: "Reflection",
+                      style: GoogleFonts.aBeeZee(color: Colors.blueAccent),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
+
+  // Widget _buildHeader() {
+  //   return SafeArea(
+  //     child: Padding(
+  //       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+  //       child: Row(
+  //         children: [
+  //           IconButton(
+  //             icon: const Icon(
+  //               Icons.arrow_back_ios_new_rounded,
+  //               color: Colors.white,
+  //               size: 20,
+  //             ),
+  //             onPressed: () => Navigator.pop(context),
+  //           ),
+  //           const SizedBox(width: 8),
+  //           Text(
+  //             "Insights",
+  //             style: GoogleFonts.lato(
+  //               fontSize: 26,
+  //               fontWeight: FontWeight.bold,
+  //               color: Colors.white.withOpacity(0.97),
+  //             ),
+  //           ),
+  //         ],
+  //       ),
+  //     ),
+  //   );
+  // }
 
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(userProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xfff0f4ff),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: loadInsights,
-              child: SafeArea(
-                child: Column(
-                  children: [
-                    _buildHeader(),
-                    Expanded(
-                      child: SingleChildScrollView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildSectionTitle("Communication Trends"),
-                            Container(
-                              margin: const EdgeInsets.symmetric(
-                                horizontal: 16,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xffc2e9fb), Color(0xffa1c4fd), Color(0xffcfd9df)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: isLoading
+            ? const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              )
+            : RefreshIndicator(
+                color: Colors.white,
+                onRefresh: loadInsights,
+                child: SafeArea(
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20.0,
+                          vertical: 10,
+                        ),
+                        child: _buildGlassHeader(context, ref),
+                      ),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            children: [
+                              _sectionTitle("Communication Trends"),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                ),
+                                child: ScoreChart(
+                                  scores: _extractScores(user?.id ?? ""),
+                                ),
                               ),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(20),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black12,
-                                    blurRadius: 8,
-                                    offset: const Offset(1, 3),
+                              _sectionTitle("Past Sessions"),
+                              if (sessions.isEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 28,
                                   ),
-                                ],
-                              ),
-                              padding: const EdgeInsets.all(16),
-                              child: ScoreChart(
-                                scores: _extractScores(user?.id ?? ""),
-                              ),
-                            ),
-
-                            _buildSectionTitle("Past Sessions"),
-                            if (sessions.isEmpty)
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
+                                  child: Text(
+                                    "No sessions yet.",
+                                    style: GoogleFonts.lato(
+                                      fontSize: 14,
+                                      color: Colors.white.withOpacity(0.7),
+                                    ),
+                                  ),
+                                )
+                              else
+                                ...List.generate(
+                                  sessions.length,
+                                  (i) => _buildSessionCard(i, sessions[i]),
                                 ),
-                                child: Text(
-                                  "No sessions yet.",
-                                  style: GoogleFonts.lato(),
+                              _sectionTitle("Your Reflections"),
+                              if (reflections.isEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 28,
+                                  ),
+                                  child: Text(
+                                    "No reflections yet.",
+                                    style: GoogleFonts.lato(
+                                      fontSize: 14,
+                                      color: Colors.white.withOpacity(0.7),
+                                    ),
+                                  ),
+                                )
+                              else
+                                ...List.generate(
+                                  reflections.length,
+                                  (i) =>
+                                      _buildReflectionCard(i, reflections[i]),
                                 ),
-                              )
-                            else
-                              ...sessions.map(
-                                (s) => _buildSessionCard(s, user?.id ?? ""),
-                              ),
-
-                            _buildSectionTitle("Your Reflections"),
-                            if (reflections.isEmpty)
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                ),
-                                child: Text(
-                                  "No reflections yet.",
-                                  style: GoogleFonts.lato(),
-                                ),
-                              )
-                            else
-                              ...reflections.map(_buildReflectionCard),
-
-                            const SizedBox(height: 32),
-                          ],
+                              const SizedBox(height: 32),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
+      ),
     );
   }
 }

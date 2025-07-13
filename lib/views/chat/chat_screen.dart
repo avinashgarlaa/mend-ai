@@ -1,4 +1,6 @@
+// Enhanced ChatScreen with polished UI and AI-driven reflection
 import 'dart:convert';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_tts/flutter_tts.dart';
@@ -24,14 +26,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
   late stt.SpeechToText _speech;
   late FlutterTts _flutterTts;
-
   bool _isListening = false;
-  Color _bgColor = const Color(0xfff0f4ff);
+  bool _isSending = false;
+  Color _bgColor = const Color(0xffe6f0ff);
 
   User? partner;
   Session? session;
 
-  final List<Color> gradientColors = [Color(0xff8e2de2), Color(0xff4a00e0)];
+  final List<Color> gradientColors = [
+    const Color(0xffc2e9fb),
+    const Color.fromARGB(255, 146, 187, 254),
+  ];
 
   @override
   void initState() {
@@ -67,15 +72,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (sessionRes != null) {
         final chatVM = ref.read(chatViewModelProvider);
         chatVM.loadPreviousMessages(sessionRes.messages);
-        chatVM.connect(user.id, sessionRes.id);
+        chatVM.removeListener(_scrollToBottom);
         chatVM.addListener(_scrollToBottom);
+        chatVM.connect(user.id, sessionRes.id);
 
         Future.delayed(const Duration(milliseconds: 600), () {
           chatVM.sendMessageWithModeration(
             speakerId: "AI",
             sessionId: sessionRes.id,
-            text:
-                "Welcome to Mend. What would you like to work on together today?",
+            text: "Welcome to Mend. What would you like to work on today?",
             onAIReply: (reply) => _flutterTts.speak(reply),
             onInterrupt: null,
           );
@@ -89,11 +94,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Future<void> _sendMessage([String? input]) async {
+    if (_isSending) return;
     final user = ref.read(userProvider);
     final chatVM = ref.read(chatViewModelProvider);
     final text = input ?? _controller.text.trim();
 
     if (text.isEmpty || user == null || session == null) return;
+
+    _isSending = true;
 
     await chatVM.sendMessageWithModeration(
       speakerId: user.id,
@@ -104,28 +112,27 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
 
     _controller.clear();
+    _isSending = false;
   }
 
   void _startListening() async {
-    if (_isListening) {
-      _speech.stop();
+    if (_isListening || _speech.isListening) {
+      await _speech.stop();
       setState(() => _isListening = false);
-    } else {
-      final available = await _speech.initialize(
-        onStatus: (status) => debugPrint('Speech status: $status'),
-        onError: (error) => debugPrint('Speech error: $error'),
+      return;
+    }
+
+    final available = await _speech.initialize();
+    if (available) {
+      setState(() => _isListening = true);
+      _speech.listen(
+        onResult: (result) {
+          if (result.finalResult) {
+            setState(() => _isListening = false);
+            _sendMessage(result.recognizedWords);
+          }
+        },
       );
-      if (available) {
-        setState(() => _isListening = true);
-        _speech.listen(
-          onResult: (result) {
-            if (result.finalResult) {
-              setState(() => _isListening = false);
-              _sendMessage(result.recognizedWords);
-            }
-          },
-        );
-      }
     }
   }
 
@@ -146,7 +153,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     setState(() => _bgColor = Colors.red.shade100);
     _flutterTts.speak("Please let $partnerName finish their thought.");
     Future.delayed(const Duration(milliseconds: 800), () {
-      setState(() => _bgColor = const Color(0xfff0f4ff));
+      setState(() => _bgColor = const Color(0xffe6f0ff));
     });
   }
 
@@ -195,7 +202,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     required int timestamp,
   }) {
     final color = isAI
-        ? Colors.amber.shade100
+        ? Colors.yellow.shade100
         : isSelf
         ? (isBlue ? Colors.blue.shade100 : Colors.pink.shade100)
         : (isBlue ? Colors.pink.shade100 : Colors.blue.shade100);
@@ -213,22 +220,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       bottomRight: Radius.circular(isSelf ? 0 : 18),
     );
 
-    return Align(
+    return AnimatedAlign(
       alignment: align,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 6),
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: borderRadius,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 6,
-              offset: const Offset(2, 3),
-            ),
-          ],
-        ),
+        decoration: BoxDecoration(color: color, borderRadius: borderRadius),
         constraints: BoxConstraints(
           maxWidth: MediaQuery.of(context).size.width * 0.75,
         ),
@@ -263,159 +262,283 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final user = ref.watch(userProvider);
     final messages = ref.watch(chatViewModelProvider).messages;
 
+    final partnerName = partner?.name ?? "Partner";
+    final userName = user?.name ?? "You";
+
     return Scaffold(
+      extendBodyBehindAppBar: true,
       backgroundColor: _bgColor,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: ListView.builder(
-                controller: _scrollController,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 16,
-                ),
-                itemCount: messages.length,
-                itemBuilder: (_, index) {
-                  final raw = messages[index];
-                  String text = raw;
-                  String? speaker;
-                  bool isSelf = false;
-                  bool isAI = false;
-                  int timestamp = DateTime.now().millisecondsSinceEpoch;
-
-                  try {
-                    final parsed = jsonDecode(raw);
-                    text = parsed['text'] ?? '';
-                    speaker = parsed['speakerId'];
-                    timestamp = parsed['timestamp'] ?? timestamp;
-                    isSelf = speaker == user?.id;
-                    isAI = speaker == 'AI';
-                  } catch (_) {}
-
-                  final isBlue = user?.colorCode == 'blue';
-                  final label = isAI
-                      ? "AI"
-                      : isSelf
-                      ? user?.name ?? "You"
-                      : partner?.name ?? "Partner";
-
-                  return _buildMessageBubble(
-                    text: text,
-                    label: label,
-                    isSelf: isSelf,
-                    isAI: isAI,
-                    isBlue: isBlue,
-                    timestamp: timestamp,
-                  );
-                },
+      body: Stack(
+        children: [
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Color(0xffc2e9fb),
+                  Color(0xffa1c4fd),
+                  Color(0xffcfd9df),
+                ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
               ),
             ),
-
-            // Input + Buttons
-            Container(
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 16),
-              color: Colors.white,
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _controller,
-                          style: GoogleFonts.lato(),
-                          decoration: InputDecoration(
-                            hintText: "Type or speak...",
-                            contentPadding: const EdgeInsets.symmetric(
-                              vertical: 12,
-                              horizontal: 16,
-                            ),
-                            filled: true,
-                            fillColor: const Color(0xfff0f0f0),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(20),
-                              borderSide: BorderSide.none,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        icon: Icon(
-                          _isListening ? Icons.mic : Icons.mic_none,
-                          color: gradientColors.first,
-                        ),
-                        onPressed: _startListening,
-                      ),
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(colors: gradientColors),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: IconButton(
-                          icon: const Icon(Icons.send, color: Colors.white),
-                          onPressed: _sendMessage,
-                        ),
-                      ),
-                    ],
+            child: SizedBox.expand(),
+          ),
+          SafeArea(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 14,
                   ),
-                  const SizedBox(height: 12),
-                  Row(
+                  child: Row(
                     children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          icon: const Icon(Icons.stop_circle_outlined),
-                          onPressed: _endSession,
-                          label: const Text("End Session"),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.redAccent,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                          ),
+                      CircleAvatar(
+                        radius: 22,
+                        backgroundColor: Colors.white.withOpacity(0.35),
+                        child: const Icon(
+                          Icons.favorite,
+                          color: Colors.blueAccent,
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: OutlinedButton.icon(
-                          icon: const Icon(Icons.insights),
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text("Insights coming soon..."),
-                              ),
-                            );
-                          },
-                          label: const Text("View Insights"),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: gradientColors.first,
-                            side: BorderSide(color: gradientColors.first),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                            ),
+                        child: Text(
+                          "Chat with $partnerName",
+                          style: GoogleFonts.lato(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blueGrey[900],
                           ),
                         ),
                       ),
+                      IconButton(
+                        icon: const Icon(Icons.more_vert_rounded),
+                        onPressed: () {},
+                      ),
                     ],
+                  ),
+                ),
+                Expanded(
+                  child: Container(
+                    margin: const EdgeInsets.only(top: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.05),
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(28),
+                      ),
+                    ),
+                    child: ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      itemCount: messages.length,
+                      itemBuilder: (_, index) {
+                        final raw = messages[index];
+                        String text = raw;
+                        String? speaker;
+                        bool isSelf = false;
+                        bool isAI = false;
+                        int timestamp = DateTime.now().millisecondsSinceEpoch;
+
+                        try {
+                          final parsed = jsonDecode(raw);
+                          text = parsed['text'] ?? '';
+                          speaker = parsed['speakerId'];
+                          timestamp = parsed['timestamp'] ?? timestamp;
+                          isSelf = speaker == user?.id;
+                          isAI = speaker == 'AI';
+                        } catch (_) {}
+
+                        final isBlue = user?.colorCode == 'blue';
+                        final label = isAI
+                            ? "Therapist AI"
+                            : isSelf
+                            ? userName
+                            : partnerName;
+
+                        return _buildMessageBubble(
+                          text: text,
+                          label: label,
+                          isSelf: isSelf,
+                          isAI: isAI,
+                          isBlue: isBlue,
+                          timestamp: timestamp,
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                _buildInputSection(),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInputSection() {
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(18, 22, 18, 26),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.08),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 20,
+                offset: const Offset(0, -8),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeOutCubic,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.88),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: Colors.blueGrey.withOpacity(0.1),
+                          width: 1.1,
+                        ),
+                      ),
+                      padding: const EdgeInsets.only(left: 16),
+                      child: TextField(
+                        controller: _controller,
+                        cursorColor: gradientColors.first,
+                        style: GoogleFonts.lato(fontSize: 16),
+                        decoration: InputDecoration(
+                          hintText: "Type your thoughts...",
+                          hintStyle: TextStyle(color: Colors.grey.shade600),
+                          border: InputBorder.none,
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              Icons.emoji_emotions_outlined,
+                              color: Colors.grey.shade400,
+                            ),
+                            onPressed: () {},
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Tooltip(
+                    message: _isListening ? "Listening..." : "Speak",
+                    child: GestureDetector(
+                      onTap: _startListening,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _isListening
+                              ? Colors.redAccent
+                              : Colors.white.withOpacity(0.9),
+                        ),
+                        child: Icon(
+                          _isListening ? Icons.mic : Icons.mic_none,
+                          color: _isListening
+                              ? Colors.white
+                              : Colors.blueAccent.withOpacity(0.7),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Tooltip(
+                    message: "Send message",
+                    child: GestureDetector(
+                      onTap: _sendMessage,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.white,
+                              const Color.fromARGB(255, 102, 139, 205),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.blueAccent.withOpacity(0.7),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.send,
+                          color: Colors.white,
+                          size: 22,
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
-            ),
-
-            if (_isListening)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Container(
-                  width: 80,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(colors: gradientColors),
-                    borderRadius: BorderRadius.circular(10),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.stop_circle_outlined),
+                      onPressed: _endSession,
+                      label: const Text("End Session"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.redAccent,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.insights_outlined),
+                      onPressed: () =>
+                          Navigator.pushNamed(context, '/insights'),
+                      label: Text(
+                        "View Insights",
+                        style: GoogleFonts.aBeeZee(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(
+                          color: gradientColors.first,
+                          width: 1.2,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-          ],
+            ],
+          ),
         ),
       ),
     );

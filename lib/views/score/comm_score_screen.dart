@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -12,24 +13,16 @@ class ScoreScreen extends ConsumerStatefulWidget {
 }
 
 class _ScoreScreenState extends ConsumerState<ScoreScreen> {
-  final Map<String, int> _scores = {
-    "empathy": 5,
-    "listening": 5,
-    "clarity": 5,
-    "respect": 5,
-    "responsiveness": 5,
-    "openMindedness": 5,
-  };
-
-  bool _isSubmitting = false;
+  Map<String, int> _scores = {};
+  String? _summary;
+  bool _isLoading = true;
 
   final Map<String, IconData> _icons = {
     "empathy": Icons.favorite_outline,
     "listening": Icons.hearing_outlined,
     "clarity": Icons.lightbulb_outline,
     "respect": Icons.volunteer_activism_outlined,
-    "responsiveness": Icons.reply_outlined,
-    "openMindedness": Icons.public_outlined,
+    "conflictResolution": Icons.handshake_outlined,
   };
 
   final Map<String, String> _labels = {
@@ -37,97 +30,78 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
     "listening": "Listening",
     "clarity": "Clarity",
     "respect": "Respect",
-    "responsiveness": "Responsiveness",
-    "openMindedness": "Open-Mindedness",
+    "conflictResolution": "Conflict Resolution",
   };
 
-  void _submit() async {
+  @override
+  void initState() {
+    super.initState();
+    _loadScore();
+  }
+
+  Future<void> _loadScore() async {
     final user = ref.read(userProvider);
     final api = ref.read(mendServiceProvider);
 
     if (user == null || user.currentSessionId == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Missing user or session.")));
+      setState(() => _isLoading = false);
       return;
     }
 
-    setState(() => _isSubmitting = true);
-
-    final payload = {
-      "sessionId": user.currentSessionId!,
-      "partnerId": user.id,
-      ..._scores,
-    };
-
     try {
-      await api.submitScore(payload);
-      if (mounted) Navigator.pushNamed(context, '/celebrate');
+      final res = await api.getSessionScore(user.currentSessionId!);
+      final session = res.data;
+      final scoreField = (session['partnerB'] == user.id) ? 'scoreB' : 'scoreA';
+      final score = session[scoreField];
+
+      if (score != null && score is Map<String, dynamic>) {
+        setState(() {
+          _scores = {
+            for (final key in _labels.keys)
+              if (score[key] != null && score[key] is int) key: score[key],
+          };
+          _summary = score["summary"];
+        });
+      }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+      debugPrint("⚠️ Error fetching AI score: $e");
     } finally {
-      setState(() => _isSubmitting = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  Widget _buildScoreSlider(String key) {
-    return Card(
-      elevation: 3,
-      margin: const EdgeInsets.symmetric(vertical: 10),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(_icons[key], color: Colors.deepPurple),
-                const SizedBox(width: 12),
-                Text(
-                  _labels[key]!,
-                  style: GoogleFonts.lato(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
+  Widget _buildGlassHeader() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withOpacity(0.08)),
+          ),
+          child: Center(
+            child: RichText(
+              text: TextSpan(
+                style: GoogleFonts.montserrat(
+                  fontSize: 21,
+                  fontWeight: FontWeight.bold,
                 ),
-                const Spacer(),
-                Text(
-                  "${_scores[key]} / 10",
-                  style: GoogleFonts.lato(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.deepPurple,
+                children: [
+                  TextSpan(
+                    text: "AI ",
+                    style: GoogleFonts.aBeeZee(color: Colors.black87),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            SliderTheme(
-              data: SliderTheme.of(context).copyWith(
-                activeTrackColor: Colors.deepPurple,
-                inactiveTrackColor: Colors.deepPurple.shade100,
-                thumbColor: Colors.deepPurple,
-                overlayColor: Colors.deepPurple.withOpacity(0.2),
-                trackHeight: 4,
-              ),
-              child: Slider(
-                value: _scores[key]!.toDouble(),
-                min: 1,
-                max: 10,
-                divisions: 9,
-                label: _scores[key].toString(),
-                onChanged: (val) {
-                  setState(() {
-                    _scores[key] = val.toInt();
-                  });
-                },
+                  TextSpan(
+                    text: "Communication Score",
+                    style: GoogleFonts.aBeeZee(color: Colors.blueAccent),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -135,66 +109,146 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // final themeColor = Colors.deepPurple;
+
     return Scaffold(
-      body: SafeArea(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xfffdfbff), Color(0xffeceaff)],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-            ),
-          ),
-          child: ListView(
-            children: [
-              const SizedBox(height: 10),
-              Center(
-                child: Text(
-                  "Communication Reflection",
-                  style: GoogleFonts.lato(
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.deepPurple.shade700,
+      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.transparent,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Stack(
+              children: [
+                const DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Color(0xffc2e9fb),
+                        Color(0xffa1c4fd),
+                        Color(0xffcfd9df),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
                   ),
-                  textAlign: TextAlign.center,
+                  child: SizedBox.expand(),
                 ),
-              ),
-              const SizedBox(height: 10),
-              Center(
-                child: Text(
-                  "How did you feel about your communication in this session?",
-                  style: GoogleFonts.lato(fontSize: 15, color: Colors.black87),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              const SizedBox(height: 30),
-              ..._scores.keys.map(_buildScoreSlider),
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _isSubmitting ? null : _submit,
-                  icon: const Icon(Icons.check_circle_outline),
-                  label: Text(
-                    _isSubmitting ? "Submitting..." : "Submit & Celebrate",
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.deepPurple,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    textStyle: GoogleFonts.lato(fontSize: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                SafeArea(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 36, 20, 48),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(24),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                        child: Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.08),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildGlassHeader(),
+                              const SizedBox(height: 20),
+                              Text(
+                                "These insights were generated based on your latest session:",
+                                style: GoogleFonts.aBeeZee(
+                                  fontSize: 16,
+                                  color: Colors.black,
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              if (_summary != null)
+                                Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: Text(
+                                    _summary!,
+                                    style: GoogleFonts.aBeeZee(
+                                      fontSize: 16,
+                                      color: Colors.blueAccent,
+                                    ),
+                                  ),
+                                ),
+                              const SizedBox(height: 24),
+                              ..._scores.entries.map((entry) {
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 8,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        _icons[entry.key],
+                                        color: Colors.blueAccent,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          _labels[entry.key]!,
+                                          style: GoogleFonts.lato(
+                                            fontSize: 16,
+                                            color: Colors.black54,
+                                          ),
+                                        ),
+                                      ),
+                                      Text(
+                                        "${entry.value} / 5",
+                                        style: GoogleFonts.lato(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 15,
+                                          color: Colors.blueAccent,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }),
+                              const SizedBox(height: 40),
+                              Center(
+                                child: ElevatedButton.icon(
+                                  onPressed: () =>
+                                      Navigator.pushReplacementNamed(
+                                        context,
+                                        '/celebrate',
+                                      ),
+                                  icon: const Icon(
+                                    Icons.celebration,
+                                    color: Colors.white,
+                                  ),
+                                  label: Text(
+                                    "Continue to Celebrate ",
+                                    style: GoogleFonts.aBeeZee(
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.blueAccent,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 24,
+                                      vertical: 14,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
-          ),
-        ),
-      ),
+              ],
+            ),
     );
   }
 }

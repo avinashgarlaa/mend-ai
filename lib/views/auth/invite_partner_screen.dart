@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -56,7 +57,7 @@ class _InvitePartnerScreenState extends ConsumerState<InvitePartnerScreen> {
         .linkPartner(user.id, partnerId);
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("🎉 Invitation sent and partner linked!")),
+        const SnackBar(content: Text("🎉 Partner linked successfully!")),
       );
       _fetchPartnerDetails();
     } else {
@@ -67,70 +68,99 @@ class _InvitePartnerScreenState extends ConsumerState<InvitePartnerScreen> {
     setState(() => isLoading = false);
   }
 
-  Widget _buildHeader(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xff8e2de2), Color(0xff4a00e0)],
-        ),
-        boxShadow: [
-          BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 4)),
-        ],
-      ),
-      child: SafeArea(
-        child: Row(
-          children: [
-            IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
-              onPressed: () => Navigator.pop(context),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              "Partner Invite",
-              style: GoogleFonts.laila(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+  Widget _buildGlassHeader(BuildContext context, WidgetRef ref) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withOpacity(0.08)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              IconButton(
+                icon: const Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: Colors.black,
+                ),
+                onPressed: () => Navigator.pushNamed(context, "/home"),
               ),
-            ),
-          ],
+              const SizedBox(width: 8),
+              RichText(
+                text: TextSpan(
+                  style: GoogleFonts.montserrat(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                  ),
+                  children: [
+                    TextSpan(
+                      text: "Invite ",
+                      style: GoogleFonts.aBeeZee(color: Colors.black87),
+                    ),
+                    TextSpan(
+                      text: "Partner",
+                      style: GoogleFonts.aBeeZee(color: Colors.blueAccent),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGlassCard({required Widget child}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withOpacity(0.05)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.blueAccent.withOpacity(0.05),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: child,
         ),
       ),
     );
   }
 
   Widget _buildInviteCard(User? user) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      margin: const EdgeInsets.only(top: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: const [
-          BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 4)),
-        ],
-      ),
+    return _buildGlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Your ID", style: GoogleFonts.lato(fontSize: 14)),
-          const SizedBox(height: 8),
+          Text("Your ID", style: GoogleFonts.aBeeZee(fontSize: 13)),
+          // const SizedBox(height: 6),
           Row(
             children: [
-              Expanded(
-                child: SelectableText(
-                  user?.id ?? "N/A",
-                  style: GoogleFonts.lato(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.deepPurple,
-                  ),
+              SelectableText(
+                user?.id ?? "N/A",
+                style: GoogleFonts.aBeeZee(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white70,
                 ),
               ),
+
               IconButton(
-                icon: const Icon(Icons.copy, color: Colors.deepPurple),
+                icon: const Icon(Icons.copy, color: Colors.blueAccent),
                 onPressed: () {
                   Clipboard.setData(ClipboardData(text: user?.id ?? ""));
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -140,24 +170,21 @@ class _InvitePartnerScreenState extends ConsumerState<InvitePartnerScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 24),
-          Text(
-            "Enter your partner’s ID:",
-            style: GoogleFonts.lato(fontWeight: FontWeight.bold),
-          ),
+          const SizedBox(height: 10),
+          Text("Enter partner ID", style: GoogleFonts.aBeeZee(fontSize: 13)),
           const SizedBox(height: 8),
           TextField(
             controller: partnerIdController,
             decoration: InputDecoration(
               hintText: "e.g. partner-uuid",
-              labelText: "Partner's ID",
+              labelText: "Partner ID",
               prefixIcon: const Icon(Icons.link),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 20),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
@@ -165,13 +192,10 @@ class _InvitePartnerScreenState extends ConsumerState<InvitePartnerScreen> {
               icon: const Icon(Icons.favorite_outline),
               label: Text(
                 "Link Partner",
-                style: GoogleFonts.laila(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: GoogleFonts.laila(fontWeight: FontWeight.w600),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.deepPurple,
+                backgroundColor: Colors.blueAccent,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
@@ -186,49 +210,32 @@ class _InvitePartnerScreenState extends ConsumerState<InvitePartnerScreen> {
   }
 
   Widget _buildPartnerCard(User partner) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      margin: const EdgeInsets.only(top: 16),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xffe0c3fc), Color(0xff8ec5fc)],
-        ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: const [
-          BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 4)),
-        ],
-      ),
+    return _buildGlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             "🎉 Partner Linked!",
-            style: GoogleFonts.lato(
+            style: GoogleFonts.aBeeZee(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Colors.deepPurple,
+              color: Colors.blueAccent,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           Row(
             children: [
-              const Icon(Icons.person, color: Colors.deepPurple),
-              const SizedBox(width: 8),
-              Text(
-                "Name: ${partner.name}",
-                style: GoogleFonts.lato(fontSize: 16),
-              ),
+              const Icon(Icons.person, color: Colors.blueAccent),
+              const SizedBox(width: 10),
+              Text("Name: ${partner.name}", style: GoogleFonts.aBeeZee()),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Row(
             children: [
-              const Icon(Icons.mail_outline, color: Colors.deepPurple),
-              const SizedBox(width: 8),
-              Text(
-                "Email: ${partner.email}",
-                style: GoogleFonts.lato(fontSize: 16),
-              ),
+              const Icon(Icons.email, color: Colors.blueAccent),
+              const SizedBox(width: 10),
+              Text("Email: ${partner.email}", style: GoogleFonts.aBeeZee()),
             ],
           ),
         ],
@@ -241,40 +248,67 @@ class _InvitePartnerScreenState extends ConsumerState<InvitePartnerScreen> {
     final user = ref.watch(userProvider);
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
       backgroundColor: const Color(0xfff0f4ff),
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(context),
-            Expanded(
-              child: isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(
-                        color: Colors.deepPurple,
-                      ),
-                    )
-                  : ListView(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 16,
-                      ),
-                      children: [
-                        Text(
-                          "Partner Connection",
-                          style: GoogleFonts.laila(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.deepPurple,
+      body: Stack(
+        children: [
+          const _AnimatedGradientBackground(),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                children: [
+                  const SizedBox(height: 16),
+                  _buildGlassHeader(context, ref),
+                  const SizedBox(height: 24),
+                  Expanded(
+                    child: isLoading
+                        ? const Center(
+                            child: CircularProgressIndicator(
+                              color: Colors.deepPurple,
+                            ),
+                          )
+                        : ListView(
+                            physics: NeverScrollableScrollPhysics(),
+                            padding: const EdgeInsets.only(bottom: 30),
+                            children: [
+                              // Text(
+                              //   "Partner Connection",
+                              //   style: GoogleFonts.laila(
+                              //     fontSize: 22,
+                              //     fontWeight: FontWeight.bold,
+                              //     color: Colors.deepPurple,
+                              //   ),
+                              // ),
+                              const SizedBox(height: 05),
+                              partnerDetails != null
+                                  ? _buildPartnerCard(partnerDetails!)
+                                  : _buildInviteCard(user),
+                            ],
                           ),
-                        ),
-                        const SizedBox(height: 12),
-                        partnerDetails != null
-                            ? _buildPartnerCard(partnerDetails!)
-                            : _buildInviteCard(user),
-                      ],
-                    ),
+                  ),
+                ],
+              ),
             ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AnimatedGradientBackground extends StatelessWidget {
+  const _AnimatedGradientBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(seconds: 2),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xffc2e9fb), Color(0xffa1c4fd), Color(0xffcfd9df)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
       ),
     );

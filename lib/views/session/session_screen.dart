@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -30,13 +31,12 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
 
   Future<void> _initData() async {
     final user = ref.read(userProvider);
-    if (user == null || user.partnerId.isEmpty) return;
-
+    if (user == null || user.partnerId.isEmpty) {
+      setState(() => isFetching = false);
+      return;
+    }
     final authVM = ref.read(authViewModelProvider);
     final sessionVM = ref.read(sessionViewModelProvider.notifier);
-
-    setState(() => isFetching = true);
-
     try {
       final partnerRes = await authVM.getPartnerDetails(user.partnerId);
       final sessionRes = await sessionVM.getActiveSession(user.id);
@@ -86,31 +86,67 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
     }
   }
 
-  Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xff8e2de2), Color(0xff4a00e0)],
+  Widget _buildGlassContainer({required Widget child}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withOpacity(0.08)),
+          ),
+          child: child,
         ),
-        boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8)],
       ),
-      child: Row(
-        children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => Navigator.pop(context),
+    );
+  }
+
+  Widget _buildGlassHeader(BuildContext context, WidgetRef ref) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withOpacity(0.08)),
           ),
-          const SizedBox(width: 8),
-          Text(
-            "Session Setup",
-            style: GoogleFonts.laila(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              IconButton(
+                icon: const Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: Colors.black54,
+                ),
+                onPressed: () => Navigator.pushNamed(context, "/home"),
+              ),
+              const SizedBox(width: 8),
+              RichText(
+                text: TextSpan(
+                  style: GoogleFonts.montserrat(
+                    fontSize: 21,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  children: [
+                    TextSpan(
+                      text: "Start Your ",
+                      style: GoogleFonts.aBeeZee(color: Colors.black87),
+                    ),
+                    TextSpan(
+                      text: "Session",
+                      style: GoogleFonts.aBeeZee(color: Colors.blueAccent),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -127,28 +163,13 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
     );
   }
 
-  Widget _buildDetailsCard(String title, List<Widget> content, {Color? color}) {
-    return Card(
-      elevation: 4,
-      color: color ?? Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+  Widget _buildSessionCard(List<Widget> content) {
+    return _buildGlassContainer(
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (title.isNotEmpty)
-              Text(
-                title,
-                style: GoogleFonts.laila(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.deepPurple,
-                ),
-              ),
-            if (title.isNotEmpty) const SizedBox(height: 12),
-            ...content,
-          ],
+          children: content,
         ),
       ),
     );
@@ -158,9 +179,14 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          "Session Context (optional)",
-          style: GoogleFonts.varelaRound(fontWeight: FontWeight.w600),
+        Row(
+          children: [
+            SizedBox(width: 10),
+            Text(
+              "Session Context (optional)",
+              style: GoogleFonts.aBeeZee(fontWeight: FontWeight.w600),
+            ),
+          ],
         ),
         const SizedBox(height: 8),
         TextField(
@@ -170,7 +196,7 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
             hintText: "What would you like to discuss?",
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             filled: true,
-            fillColor: Colors.white,
+            fillColor: Colors.white.withOpacity(0.1),
           ),
         ),
       ],
@@ -180,45 +206,40 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
   Widget _buildSessionButton(User user) {
     final isOngoing = existingSession != null;
 
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        onPressed: isLoading
-            ? null
-            : () {
-                if (isOngoing) {
-                  ref
-                      .read(userProvider.notifier)
-                      .updateSessionId(existingSession!.id);
-                  Navigator.pushReplacementNamed(context, '/chat');
-                } else {
-                  _startSession();
-                }
-              },
-        icon: Icon(isOngoing ? Icons.login : Icons.mic, color: Colors.white),
-        label: isLoading
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
-              )
-            : Text(
-                isOngoing ? "Join Ongoing Session" : "Start Voice Session",
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
+    return ElevatedButton.icon(
+      onPressed: isLoading
+          ? null
+          : () {
+              if (isOngoing) {
+                ref
+                    .read(userProvider.notifier)
+                    .updateSessionId(existingSession!.id);
+                Navigator.pushReplacementNamed(context, '/chat');
+              } else {
+                _startSession();
+              }
+            },
+      icon: Icon(isOngoing ? Icons.login : Icons.chat, color: Colors.white),
+      label: isLoading
+          ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
               ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.deepPurple,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-        ),
+            )
+          : Text(
+              isOngoing ? "Join Ongoing Session" : "Start Voice Session",
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.blueAccent,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
     );
   }
@@ -228,53 +249,106 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
     final user = ref.watch(userProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xfff0f4ff),
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(),
-            if (user == null)
-              const Expanded(child: Center(child: Text("User not found")))
-            else if (isFetching)
-              const Expanded(child: Center(child: CircularProgressIndicator()))
-            else
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 20,
-                  ),
-                  children: [
-                    Text(
-                      existingSession != null
-                          ? "Join Your Ongoing Session"
-                          : "Start a New Session",
-                      style: GoogleFonts.laila(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.deepPurple,
+      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.transparent,
+      body: Stack(
+        children: [
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Color(0xffc2e9fb),
+                  Color(0xffa1c4fd),
+                  Color(0xffcfd9df),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: SizedBox.expand(),
+          ),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                children: [
+                  const SizedBox(height: 12),
+                  _buildGlassHeader(context, ref),
+                  const SizedBox(height: 20),
+                  if (user == null)
+                    const Expanded(child: Center(child: Text("User not found")))
+                  else if (isFetching)
+                    const Expanded(
+                      child: Center(
+                        child: CircularProgressIndicator(color: Colors.white),
+                      ),
+                    )
+                  else
+                    Expanded(
+                      child: ListView(
+                        padding: const EdgeInsets.only(bottom: 40),
+                        children: [
+                          Row(
+                            children: [
+                              SizedBox(width: 10),
+                              Text(
+                                existingSession != null
+                                    ? "Join Your Ongoing Session"
+                                    : "Start a New Session",
+                                style: GoogleFonts.aBeeZee(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.black,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          _buildSessionCard([
+                            _buildRow("You        ", user.name.toUpperCase()),
+                            _buildRow("Gender  ", user.gender),
+                            _buildRow("Email     ", user.email),
+                          ]),
+                          const SizedBox(height: 16),
+                          if (partner != null)
+                            _buildSessionCard([
+                              Text(
+                                "Partner Details",
+                                style: GoogleFonts.aBeeZee(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blueAccent,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              _buildRow("Name     ", partner!.name),
+                              _buildRow("Gender  ", partner!.gender),
+                              _buildRow("Email     ", partner!.email),
+                            ])
+                          else
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              child: Text(
+                                "  Please link your partner first to start a session.",
+                                style: GoogleFonts.aBeeZee(
+                                  fontSize: 14,
+                                  color: Colors.redAccent,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          const SizedBox(height: 24),
+                          _buildSessionContextInput(),
+                          const SizedBox(height: 30),
+                          _buildSessionButton(user),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 20),
-                    _buildDetailsCard("", [
-                      _buildRow("You", user.name),
-                      _buildRow("Email", user.email),
-                    ]),
-                    const SizedBox(height: 16),
-                    if (partner != null)
-                      _buildDetailsCard("Partner Details", [
-                        _buildRow("Name", partner!.name),
-                        _buildRow("Email", partner!.email),
-                      ], color: Colors.deepPurple.shade50),
-                    const SizedBox(height: 24),
-                    _buildSessionContextInput(),
-                    const SizedBox(height: 30),
-                    _buildSessionButton(user),
-                  ],
-                ),
+                ],
               ),
-          ],
-        ),
+            ),
+          ),
+        ],
       ),
     );
   }

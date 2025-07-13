@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,92 +13,123 @@ class HomeScreen extends ConsumerWidget {
     final user = ref.watch(userProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6FA),
+      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.transparent,
       body: user == null
           ? const Center(child: Text("User not found"))
-          : SafeArea(
-              child: Column(
-                children: [
-                  _buildHeader(context, ref),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 16,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildProfileCard(user),
-                          const SizedBox(height: 20),
-                          user.partnerId.isEmpty
-                              ? _buildInviteBanner(context, user)
-                              : _buildPartnerButton(context),
-                          const SizedBox(height: 24),
-                          Text(
-                            "Explore Mend",
-                            style: GoogleFonts.lato(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.deepPurple.shade700,
+          : Stack(
+              children: [
+                const _AnimatedGradientBackground(),
+                SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 12),
+                        _buildGlassHeader(context, ref),
+                        const SizedBox(height: 20),
+                        Expanded(
+                          child: SingleChildScrollView(
+                            padding: const EdgeInsets.only(bottom: 40),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                _buildProfileInfo(user),
+                                const SizedBox(height: 24),
+                                user.partnerId.isEmpty
+                                    ? _buildInviteBanner(context, user)
+                                    : _buildPartnerButton(context),
+                                const SizedBox(height: 30),
+                                Row(
+                                  children: [
+                                    SizedBox(width: 10),
+                                    Text(
+                                      "Your Tools",
+                                      style: GoogleFonts.aBeeZee(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 14),
+                                _buildModernCard(
+                                  context,
+                                  title: "Start Session",
+                                  description:
+                                      "Join a guided session to enhance your connection.",
+                                  icon: Icons.headset_mic_rounded,
+                                  color: Colors.blueAccent,
+                                  route: "/start-session",
+                                ),
+                                const SizedBox(height: 16),
+                                _buildModernCard(
+                                  context,
+                                  title: "Insights Dashboard",
+                                  description:
+                                      "Visualize your communication progress.",
+                                  icon: Icons.auto_graph_rounded,
+                                  color: Colors.blueAccent,
+                                  route: "/insights",
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(height: 16),
-                          _buildFeatureCard(
-                            context,
-                            title: "Start a New Session",
-                            subtitle: "Begin a real-time guided conversation",
-                            icon: Icons.headset_mic,
-                            color: Colors.deepPurple,
-                            route: "/start-session",
-                          ),
-                          _buildFeatureCard(
-                            context,
-                            title: "Insights Dashboard",
-                            subtitle: "Track your communication growth",
-                            icon: Icons.bar_chart,
-                            color: Colors.indigo,
-                            route: "/insights",
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
     );
   }
 
-  Widget _buildHeader(BuildContext context, WidgetRef ref) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xff8e2de2), Color(0xff4a00e0)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+  Widget _buildGlassHeader(BuildContext context, WidgetRef ref) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withOpacity(0.08)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              RichText(
+                text: TextSpan(
+                  style: GoogleFonts.montserrat(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                  ),
+                  children: [
+                    TextSpan(
+                      text: "Welcome to ",
+                      style: GoogleFonts.aBeeZee(color: Colors.black87),
+                    ),
+                    TextSpan(
+                      text: "Mend",
+                      style: GoogleFonts.aBeeZee(color: Colors.blueAccent),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: const Icon(
+                  Icons.logout_rounded,
+                  size: 26,
+                  color: Colors.black87,
+                ),
+                onPressed: () => _showLogoutDialog(context, ref),
+              ),
+            ],
+          ),
         ),
-        boxShadow: [
-          BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 3)),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            "Welcome to Mend",
-            style: GoogleFonts.lato(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
-            onPressed: () => _showLogoutDialog(context, ref),
-          ),
-        ],
       ),
     );
   }
@@ -114,7 +146,7 @@ class HomeScreen extends ConsumerWidget {
             child: const Text("Cancel"),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
             onPressed: () {
               ref.read(userProvider.notifier).clearUser();
               Navigator.pop(context);
@@ -127,20 +159,31 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildProfileCard(user) {
-    return Card(
-      elevation: 5,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
+  Widget _buildProfileInfo(user) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(16),
+          // boxShadow: [
+          //   BoxShadow(
+          //     color: Colors.black12,
+          //     blurRadius: 20,
+          //     offset: const Offset(0, 10),
+          //   ),
+          // ],
+        ),
         child: Row(
           children: [
             CircleAvatar(
               radius: 30,
-              backgroundColor: Colors.deepPurple,
-              child: Text(
-                user.name[0].toUpperCase(),
-                style: const TextStyle(fontSize: 24, color: Colors.white),
+              backgroundColor: Colors.white.withOpacity(0.35),
+              child: Icon(
+                Icons.account_circle_rounded,
+                size: 50,
+                color: Colors.blueAccent,
               ),
             ),
             const SizedBox(width: 16),
@@ -149,16 +192,20 @@ class HomeScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    user.name,
-                    style: GoogleFonts.lato(
-                      fontSize: 18,
+                    user.name.toUpperCase(),
+                    style: GoogleFonts.aBeeZee(
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
+                      color: Colors.black,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     user.email,
-                    style: GoogleFonts.varelaRound(color: Colors.grey[700]),
+                    style: GoogleFonts.aBeeZee(
+                      fontSize: 13,
+                      color: Colors.black54,
+                    ),
                   ),
                 ],
               ),
@@ -173,43 +220,34 @@ class HomeScreen extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xfffbc2eb), Color(0xffa6c1ee)],
-        ),
+        color: Colors.white.withOpacity(0.1),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 5)],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             "Invite Your Partner",
-            style: GoogleFonts.lato(
-              fontSize: 16,
+            style: GoogleFonts.aBeeZee(
+              fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Colors.deepPurple,
+              color: Colors.black,
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
-            "Share your Partner ID to start growing together.",
-            style: TextStyle(fontSize: 14),
+          Text(
+            "Share your ID to connect together.",
+            style: GoogleFonts.aBeeZee(fontSize: 13, color: Colors.black54),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Row(
             children: [
-              Expanded(
-                child: SelectableText(
-                  user.id,
-                  style: GoogleFonts.varelaRound(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.deepPurple,
-                  ),
-                ),
+              Text(
+                user.id,
+                style: GoogleFonts.aBeeZee(fontSize: 12, color: Colors.white),
               ),
               IconButton(
-                icon: const Icon(Icons.copy, color: Colors.deepPurple),
+                icon: const Icon(Icons.copy, color: Colors.white),
                 onPressed: () {
                   Clipboard.setData(ClipboardData(text: user.id));
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -219,21 +257,18 @@ class HomeScreen extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () => Navigator.pushNamed(context, '/invite-partner'),
-              icon: const Icon(Icons.favorite_outline),
-              label: const Text("Invite Partner"),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.deepPurple,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                padding: const EdgeInsets.symmetric(vertical: 14),
+          const SizedBox(height: 10),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pushNamed(context, '/invite-partner'),
+            icon: const Icon(Icons.favorite_outline),
+            label: Text("Invite Partner", style: GoogleFonts.aBeeZee()),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blueAccent,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
             ),
           ),
         ],
@@ -242,71 +277,100 @@ class HomeScreen extends ConsumerWidget {
   }
 
   Widget _buildPartnerButton(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: OutlinedButton.icon(
-        onPressed: () => Navigator.pushNamed(context, '/invite-partner'),
-        icon: const Icon(Icons.favorite, color: Colors.deepPurple),
-        label: const Text("View Partner Details"),
-        style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: Colors.deepPurple),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          foregroundColor: Colors.deepPurple,
-        ),
+    return OutlinedButton.icon(
+      onPressed: () => Navigator.pushNamed(context, '/invite-partner'),
+      icon: const Icon(Icons.person_2_rounded),
+      label: const Text("View Partner Details"),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: Colors.black,
+        side: const BorderSide(color: Colors.white60),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        padding: const EdgeInsets.symmetric(vertical: 14),
       ),
     );
   }
 
-  Widget _buildFeatureCard(
+  Widget _buildModernCard(
     BuildContext context, {
     required String title,
-    required String subtitle,
+    required String description,
     required IconData icon,
     required String route,
     required Color color,
   }) {
-    return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: InkWell(
-        onTap: () => Navigator.pushNamed(context, route),
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-          child: Row(
-            children: [
-              CircleAvatar(
-                backgroundColor: color.withOpacity(0.1),
-                child: Icon(icon, color: color),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: GoogleFonts.varelaRound(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
+    return InkWell(
+      onTap: () => Navigator.pushNamed(context, route),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.15),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 24,
+              backgroundColor: color.withOpacity(0.12),
+              child: Icon(icon, size: 24, color: color),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.aBeeZee(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: GoogleFonts.varelaRound(color: Colors.grey[700]),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    description,
+                    style: GoogleFonts.aBeeZee(
+                      fontSize: 12,
+                      color: Colors.black54,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              const Icon(Icons.arrow_forward_ios_rounded, size: 16),
-            ],
-          ),
+            ),
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 16,
+              color: Colors.black38,
+            ),
+          ],
         ),
       ),
+    );
+  }
+}
+
+class _AnimatedGradientBackground extends StatelessWidget {
+  const _AnimatedGradientBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    return const DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xffc2e9fb), Color(0xffa1c4fd), Color(0xffcfd9df)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: SizedBox.expand(),
     );
   }
 }
