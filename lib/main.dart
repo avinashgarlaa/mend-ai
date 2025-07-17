@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 // Screens & ViewModels
 import 'package:mend_ai/viewmodels/auth_viewmodel.dart';
+import 'package:mend_ai/viewmodels/call/call_screen.dart';
 import 'package:mend_ai/views/auth/login_screen.dart';
 import 'package:mend_ai/views/auth/register_screen.dart';
 import 'package:mend_ai/views/auth/invite_partner_screen.dart';
@@ -73,6 +74,7 @@ class MendApp extends ConsumerWidget {
         '/celebrate': (context) => const CelebrationScreen(),
         '/post-resolution': (context) => const PostResolutionScreen(),
         '/score': (context) => const ScoreScreen(),
+        '/call': (context) => const CallScreen(),
       },
 
       onGenerateRoute: (settings) {

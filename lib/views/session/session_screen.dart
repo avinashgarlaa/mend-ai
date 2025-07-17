@@ -78,7 +78,7 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
 
     if (session != null) {
       ref.read(userProvider.notifier).updateSessionId(session.id);
-      Navigator.pushReplacementNamed(context, '/chat');
+      Navigator.pushReplacementNamed(context, '/call');
     } else {
       ScaffoldMessenger.of(
         context,
@@ -214,7 +214,7 @@ class _StartSessionScreenState extends ConsumerState<StartSessionScreen> {
                 ref
                     .read(userProvider.notifier)
                     .updateSessionId(existingSession!.id);
-                Navigator.pushReplacementNamed(context, '/chat');
+                Navigator.pushReplacementNamed(context, '/call');
               } else {
                 _startSession();
               }
